@@ -3,4 +3,5 @@ bootloader
 modules
 tools
 .west
+.cache
 build
