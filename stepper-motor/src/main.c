@@ -9,7 +9,7 @@
 #define COIL_4 DT_NODELABEL(coil_4)
 
 // constant for sleep time
-#define SLEEP_TIME 100
+#define SLEEP_TIME 50
 // constant of number of turns on coil
 #define NUM_TURNS 300
 
@@ -32,10 +32,10 @@ void set_pins(int pin1, int pin2, int pin3, int pin4) {
 int main(void) {
 
   /* Configure Candidates */
-  gpio_pin_configure(gpio0, 17, GPIO_OUTPUT_ACTIVE);
-  gpio_pin_configure(gpio0, 20, GPIO_OUTPUT_ACTIVE);
-  gpio_pin_configure(gpio0, 22, GPIO_OUTPUT_ACTIVE);
-  gpio_pin_configure(gpio0, 24, GPIO_OUTPUT_ACTIVE);
+  gpio_pin_configure(gpio0, 17, GPIO_OUTPUT);
+  gpio_pin_configure(gpio0, 20, GPIO_OUTPUT);
+  gpio_pin_configure(gpio0, 22, GPIO_OUTPUT);
+  gpio_pin_configure(gpio0, 24, GPIO_OUTPUT);
 
   printk("Starting...\n");
   // check that all pins are ready
@@ -67,31 +67,19 @@ int main(void) {
         set_pins(1,0,0,0);
       break;
     case 1:
-        set_pins(1,0,1,0);
-      break;
-    case 2:
         set_pins(0,0,1,0);
       break;
-    case 3:
-        set_pins(0,1,1,0);
-      break;
-    case 4:
+    case 2:
         set_pins(0,1,0,0);
       break;
-    case 5:
-        set_pins(0,1,0,1);
-      break;
-    case 6:
+    case 3:
         set_pins(0,0,0,1);
-      break;
-    case 7:
-        set_pins(1,0,0,1);
       break;
     }
 
     current_pin++;
     step++;
-    if (current_pin >= 7) {
+    if (current_pin >= 4) {
       current_pin = 0;
     }
     if (step == 200) {
@@ -101,9 +89,11 @@ int main(void) {
     }
     if (NUM_TURNS == num_rotations) {
       printk("Finished rotating %d times\n", NUM_TURNS);
+      set_pins(0,0,0,0);
       return 0;
     }
-
+    k_msleep(SLEEP_TIME);
+    set_pins(0,0,0,0);
     k_msleep(SLEEP_TIME);
   }
 
