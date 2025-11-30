@@ -9,7 +9,7 @@
 #define COIL_4 DT_NODELABEL(coil_4)
 
 // constant for sleep time
-#define SLEEP_TIME 50
+#define SLEEP_TIME 10
 // constant of number of turns on coil
 #define NUM_TURNS 300
 
@@ -20,6 +20,10 @@ static const struct gpio_dt_spec coils[] = {
 
 const struct device *gpio0 = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 const struct device *gpio1 = DEVICE_DT_GET(DT_NODELABEL(gpio1));
+
+int current_sleep = 103;
+// when to ramp down speed
+int ramp_down_step = (NUM_TURNS * 200) - 100;
 
 void set_pins(int pin1, int pin2, int pin3, int pin4) {
   // args: takes pins 1-4 with which are activated
@@ -56,7 +60,10 @@ int main(void) {
   int num_rotations = 0;
   int step = 0;
   int current_pin = 0;
+  int total_step = 0;
 
+  // wait for a second after plugging in usb to get ready
+  k_msleep(1000);
   while (1) {
     printk("Current step is %d the current pin we are driving is %d and we are "
            "on rotation %d\n",
@@ -78,6 +85,7 @@ int main(void) {
     }
 
     current_pin++;
+    total_step++;
     step++;
     if (current_pin >= 4) {
       current_pin = 0;
@@ -92,9 +100,18 @@ int main(void) {
       set_pins(0,0,0,0);
       return 0;
     }
-    k_msleep(SLEEP_TIME);
-    set_pins(0,0,0,0);
-    k_msleep(SLEEP_TIME);
+
+    // speed up or ramp down
+    k_msleep(current_sleep);
+    // if this is the first 100 steps then speed up
+    // reduce sleep time by 100
+    if (total_step <= 100){
+      current_sleep--;
+    }
+    // if this is the last 100 steps ramp down
+    else if (total_step >= ramp_down_step){
+      current_sleep++;
+    }
   }
 
   return 0;
