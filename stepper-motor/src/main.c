@@ -21,9 +21,9 @@ static const struct gpio_dt_spec coils[] = {
 const struct device *gpio0 = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 const struct device *gpio1 = DEVICE_DT_GET(DT_NODELABEL(gpio1));
 
-int current_sleep = 103;
+int current_sleep = 203;
 // when to ramp down speed
-int ramp_down_step = (NUM_TURNS * 200) - 100;
+int ramp_down_step = (NUM_TURNS * 200) - 200;
 
 void set_pins(int pin1, int pin2, int pin3, int pin4) {
   // args: takes pins 1-4 with which are activated
@@ -105,7 +105,7 @@ int main(void) {
     k_msleep(current_sleep);
     // if this is the first 100 steps then speed up
     // reduce sleep time by 100
-    if (total_step <= 100){
+    if (total_step <= 200){
       current_sleep--;
     }
     // if this is the last 100 steps ramp down
