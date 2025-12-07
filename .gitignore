@@ -5,3 +5,7 @@ tools
 .west
 .cache
 build
+*.FCBak
+*.3mf
+*.mtl
+*.obj
