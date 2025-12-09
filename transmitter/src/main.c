@@ -1,3 +1,4 @@
+#include "qmc5883p.h"
 #include "zephyr/device.h"
 #include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/pwm.h>
@@ -9,6 +10,7 @@
 #define COIL_1 DT_NODELABEL(coil_1)
 #define COIL_2 DT_NODELABEL(coil_2)
 #define IMU DT_NODELABEL(mpu6500)
+#define I2C DT_NODELABEL(i2c0)
 
 #define PERIOD PWM_KHZ(32)
 #define DUTY_CYCLE 0.5
@@ -18,10 +20,8 @@ int16_t buf;
 int32_t val_mv;
 int32_t err;
 
-
-float sensor_val_to_float(const struct sensor_value *val)
-{
-    return (float)val->val1 + ((float)val->val2 / 1000000.0f);
+float sensor_val_to_float(const struct sensor_value *val) {
+  return (float)val->val1 + ((float)val->val2 / 1000000.0f);
 }
 
 // TODO: get logs working rather than just printk
@@ -39,6 +39,7 @@ static const struct pwm_dt_spec pwms[] = {PWM_DT_SPEC_GET(COIL_1),
                                           PWM_DT_SPEC_GET(COIL_2)};
 // Get I2C for IMU
 static const struct device *imu_dev = DEVICE_DT_GET(IMU);
+static const struct device *i2c_dev = DEVICE_DT_GET(I2C);
 
 struct sensor_value accel[3];
 struct sensor_value gyro[3];
@@ -117,26 +118,17 @@ int read_imu() {
     printk("fetching IMU data failed (Error: %d)\n", ret);
   }
 
-  // sensor_channel_get(imu_dev, SENSOR_CHAN_ACCEL_XYZ, accel);
-  // sensor_channel_get(imu_dev, SENSOR_CHAN_ACCEL_XYZ, gyro);
-  // float ax = sensor_val_to_float(&accel[0]);
-  // float ay = sensor_val_to_float(&accel[1]);
-  // float az = sensor_val_to_float(&accel[2]);
+  sensor_channel_get(imu_dev, SENSOR_CHAN_ACCEL_XYZ, accel);
+  sensor_channel_get(imu_dev, SENSOR_CHAN_ACCEL_XYZ, gyro);
+  float ax = sensor_val_to_float(&accel[0]);
+  float ay = sensor_val_to_float(&accel[1]);
+  float az = sensor_val_to_float(&accel[2]);
 
-  // float gx = sensor_val_to_float(&gyro[0]);
-  // float gy = sensor_val_to_float(&gyro[1]);
-  // float gz = sensor_val_to_float(&gyro[2]);
+  float gx = sensor_val_to_float(&gyro[0]);
+  float gy = sensor_val_to_float(&gyro[1]);
+  float gz = sensor_val_to_float(&gyro[2]);
 
-  // printk("A: %.2f %.2f %.2f | G: %.2f %.2f %.2f\n", ax, ay, az, gx, gy, gz);
-  //
-  //
-  sensor_channel_get(imu_dev, SENSOR_CHAN_MAGN_XYZ, mag);
-  float mx = sensor_val_to_float(&mag[0]);
-  float my = sensor_val_to_float(&mag[1]);
-  float mz = sensor_val_to_float(&mag[2]);
-
-  printk("mag x:%d y:%d z:%d\n", mx,my,mz);
-
+  printk("A: %.2f %.2f %.2f | G: %.2f %.2f %.2f\n", ax, ay, az, gx, gy, gz);
   return 0;
 }
 
@@ -155,15 +147,22 @@ int main(void) {
     return 0;
   }
 
-  setup_imu();
+  // setup_imu();
+  setup_qmc5883p(i2c_dev);
+  struct qmc_data mag_data ;
 
   printk("All pins are ready!\n");
+
+  // qmc_calibration_routine(i2c_dev);
+
   while (1) {
     // err = read_adc();
     if (err == 0) {
       return 0;
     }
     // read_imu();
+    qmc_read_sensor_data(i2c_dev,&mag_data);
+    printk("mag data: x:%d y:%d z:%d\n",mag_data.x,mag_data.y,mag_data.z);
     k_msleep(500);
   }
 

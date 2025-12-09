@@ -43,23 +43,17 @@
 };
 
 &i2c0{
+  // https://koen.vervloesem.eu/blog/how-to-change-the-default-i2c-pins-in-zephyr/
   status = "okay";
   compatible = "nordic,nrf-twim";
   pinctrl-0 = <&i2c0_default>;
-  clock-frequency = <I2C_BITRATE_FAST>;
+  clock-frequency = <I2C_BITRATE_STANDARD>;
   pinctrl-1 = <&i2c0_sleep>;
   pinctrl-names = "default","sleep";
   mpu6500: mpu6500@68 {
-      // compatible = "invensense,mpu9250";
       compatible = "invensense,mpu6050";
-      // compatible = "honeywell,hmc5883l";
       reg = <0x68>;
       status = "okay";
-      // gyro-sr-div = <0>;
-      // gyro-dlpf = <250>;
-      // gyro-fs = <250>;
-      // accel-fs = <2>;
-      // accel-dlpf = "218.1";
   };
 };
 
@@ -78,25 +72,24 @@
 &pinctrl {
     pwm0_default: pwm0_default {
         group1 {
-            // set channel 0, Pin P0.17
-            // Pin P0.20
-            psels = <NRF_PSEL(PWM_OUT0, 0, 17)>,
-                    <NRF_PSEL(PWM_OUT1, 0, 20)>;
-        };
+          psels = <NRF_PSEL(PWM_OUT0,1,4)>,
+            <NRF_PSEL(PWM_OUT1,1,6)>;
+            };
     };
 
     i2c0_default: i2c0_default{
       group1 {
-      psels = <NRF_PSEL(TWIM_SCL,1,4)>,
-        <NRF_PSEL(TWIM_SDA,1,6)>;
+            psels = <NRF_PSEL(TWIM_SDA, 0, 17)>,
+                    <NRF_PSEL(TWIM_SCL, 0, 20)>;
     };
       bias-pull-up;
   };
 
   i2c0_sleep: i2c0_sleep {
     group1 {
-        psels = <NRF_PSEL(TWIM_SCL, 1, 4)>,
-          <NRF_PSEL(TWIM_SDA, 1, 6)>;
+            psels = <NRF_PSEL(TWIM_SDA, 0, 17)>,
+                    <NRF_PSEL(TWIM_SCL, 0, 20)>;
+
         low-power-enable;
     };
   };
