@@ -1,0 +1,103 @@
+/ {
+  // required for setting ADC
+  zephyr,user {
+    io-channels=<&adc 0>;
+  };
+
+  tx: tx{
+    compatible = "pwm-leds";
+
+    coil_1: coil_1 {
+      // this pin is used to pulse tx
+      pwms = <&pwm0 0 2000 PWM_POLARITY_NORMAL>;
+
+    };
+
+    // keep this pin low for transmission
+    coil_2: coil_2 {
+      pwms = <&pwm0 1 2000 PWM_POLARITY_NORMAL>;
+    };
+  };
+};
+
+// enable ADC and PWM
+
+&adc {
+  // docs for this here: https://docs.zephyrproject.org/latest/build/dts/api/bindings/adc/nordic%2Cnrf-saadc.html#std-dtcompatible-nordic-nrf-saadc
+  #address-cells = <1>;
+  #size-cells = <0>;
+  status = "okay";
+  channel@0 {
+    reg = <0>;
+    // * input voltage by x1
+    zephyr,gain = "ADC_GAIN_1_6";
+    // compare with internal +0.6 voltage
+    zephyr,reference = "ADC_REF_INTERNAL";
+    // 10 us
+    zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+    // pin 0.02
+    zephyr,input-positive = <NRF_SAADC_AIN0>;
+    zephyr,resolution = <12>;
+    // zephyr,vbias-pins - could be useful to add
+  };
+};
+
+&i2c0{
+  status = "okay";
+  compatible = "nordic,nrf-twim";
+  pinctrl-0 = <&i2c0_default>;
+  clock-frequency = <I2C_BITRATE_FAST>;
+  pinctrl-1 = <&i2c0_sleep>;
+  pinctrl-names = "default","sleep";
+  mpu6500: mpu6500@68 {
+      // compatible = "invensense,mpu9250";
+      compatible = "invensense,mpu6050";
+      // compatible = "honeywell,hmc5883l";
+      reg = <0x68>;
+      status = "okay";
+      // gyro-sr-div = <0>;
+      // gyro-dlpf = <250>;
+      // gyro-fs = <250>;
+      // accel-fs = <2>;
+      // accel-dlpf = "218.1";
+  };
+};
+
+
+//TODO: add proper sleep definition for pincrtl-1
+&pwm0 {
+  status = "okay";
+  // set pin control with 'pwm0_default'
+  pinctrl-0 = <&pwm0_default>;
+  pinctrl-1 = <&pwm0_default>;
+  pinctrl-names = "default","sleep";
+};
+
+
+// set up pins for PWM
+&pinctrl {
+    pwm0_default: pwm0_default {
+        group1 {
+            // set channel 0, Pin P0.17
+            // Pin P0.20
+            psels = <NRF_PSEL(PWM_OUT0, 0, 17)>,
+                    <NRF_PSEL(PWM_OUT1, 0, 20)>;
+        };
+    };
+
+    i2c0_default: i2c0_default{
+      group1 {
+      psels = <NRF_PSEL(TWIM_SCL,1,4)>,
+        <NRF_PSEL(TWIM_SDA,1,6)>;
+    };
+      bias-pull-up;
+  };
+
+  i2c0_sleep: i2c0_sleep {
+    group1 {
+        psels = <NRF_PSEL(TWIM_SCL, 1, 4)>,
+          <NRF_PSEL(TWIM_SDA, 1, 6)>;
+        low-power-enable;
+    };
+  };
+};
