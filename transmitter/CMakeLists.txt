@@ -10,4 +10,6 @@ target_sources(app PRIVATE
   src/pwm.c
   src/imu.c
   src/adc.c
+  src/orientation_handle.c
+  src/lib/MadgwickAHRS.c
 )

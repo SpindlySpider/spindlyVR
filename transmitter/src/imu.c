@@ -1,6 +1,7 @@
 #include "imu.h"
-#include <zephyr/sys/printk.h>
+#include "orientation_handle.h"
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/sys/printk.h>
 
 #define IMU DT_NODELABEL(mpu6500)
 
@@ -20,7 +21,7 @@ int setup_imu() {
   return 1;
 }
 
-int read_imu() {
+int read_imu(struct sensor_data_struct *data) {
   int ret = sensor_sample_fetch(imu_dev);
   if (ret < 0) {
     printk("fetching IMU data failed (Error: %d)\n", ret);
@@ -36,6 +37,12 @@ int read_imu() {
   float gy = sensor_val_to_float(&gyro[1]);
   float gz = sensor_val_to_float(&gyro[2]);
 
-  printk("A: %.2f %.2f %.2f | G: %.2f %.2f %.2f\n", ax, ay, az, gx, gy, gz);
+  // printk("A: %.2f %.2f %.2f | G: %.2f %.2f %.2f\n", ax, ay, az, gx, gy, gz);
+  data->accel_x = ax;
+  data->accel_y = ay;
+  data->accel_z = az;
+  data->gyro_x = gx;
+  data->gyro_y = gy;
+  data->gyro_z = gz;
   return 0;
 }

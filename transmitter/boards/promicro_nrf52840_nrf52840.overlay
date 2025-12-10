@@ -54,6 +54,8 @@
       compatible = "invensense,mpu6050";
       reg = <0x68>;
       status = "okay";
+      gyro-fs = <2000>;
+      accel-fs = <2>;
   };
 };
 

@@ -1,11 +1,12 @@
-#include "qmc5883p.h"
 #include "pwm.h"
 #include "adc.h"
-#include "imu.h"
+#include "orientation_handle.h"
 #include "zephyr/device.h"
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+
+//TODO: move device tree defs into here so they are configurable
 
 // define constants
 #define I2C DT_NODELABEL(i2c0)
@@ -28,25 +29,22 @@ int main(void) {
   if (_err == 0) {
     return 0;
   }
-
-  setup_imu();
-  setup_qmc5883p(i2c_dev);
-  struct qmc_data mag_data ;
+  setup_sensors();
 
   printk("All pins are ready!\n");
 
   // qmc_calibration_routine(i2c_dev);
+  run_orientation_loop();
 
-  while (1) {
-    _err = read_adc();
-    if (_err == 0) {
-      return 0;
-    }
-    read_imu();
-    qmc_read_sensor_data(i2c_dev,&mag_data);
-    printk("mag data: x:%d y:%d z:%d\n",mag_data.x,mag_data.y,mag_data.z);
-    k_msleep(500);
-  }
+  // while (1) {
+    // _err = read_adc();
+    // if (_err == 0) {
+      // return 0;
+    // }
+    // read_sensors();
+    // printk("mag data: x:%d y:%d z:%d\n",mag_data.x,mag_data.y,mag_data.z);
+    // k_msleep(500);
+  // }
 
   return 0;
 }
