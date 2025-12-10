@@ -45,12 +45,19 @@
 // #define MAG_SCALE_Z   0.9914
 
 
-#define MAG_OFFSET_X  371.50
-#define MAG_OFFSET_Y  -69.50
-#define MAG_OFFSET_Z  -32.50
-#define MAG_SCALE_X   1.1358
-#define MAG_SCALE_Y   0.9372
-#define MAG_SCALE_Z   0.9500
+// #define MAG_OFFSET_X  371.50
+// #define MAG_OFFSET_Y  -69.50
+// #define MAG_OFFSET_Z  -32.50
+// #define MAG_SCALE_X   1.1358
+// #define MAG_SCALE_Y   0.9372
+// #define MAG_SCALE_Z   0.9500
+
+#define MAG_OFFSET_X  277.00
+#define MAG_OFFSET_Y  -63.00
+#define MAG_OFFSET_Z  -30.00
+#define MAG_SCALE_X   1.0000
+#define MAG_SCALE_Y   1.0019
+#define MAG_SCALE_Z   0.9981
 
 LOG_MODULE_REGISTER(qmc5883p, LOG_LEVEL_INF);
 // device pointer
@@ -151,7 +158,7 @@ int qmc_calibration_routine(const struct device *i2c_dev) {
   int16_t min_y = 32000, max_y = -32000;
   int16_t min_z = 32000, max_z = -32000;
 
-  for (int i = 0; i < 3000; i++) {
+  for (int i = 0; i < 6000; i++) {
     if (qmc_read_sensor_data(i2c_dev, &data) == 0) {
       // Update Min/Max for X
       if (data.x < min_x)
