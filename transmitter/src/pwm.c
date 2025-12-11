@@ -21,12 +21,12 @@ int setup_pwm() {
     if (!pwm_is_ready_dt(&pwms[i])) {
       // issue with this
       printk("Pin %d is not ready\n", i);
-      return 0;
+      return -1;
     }
   }
 
   printk("setting pwm to 32 khz\n");
   // setting just one for now to not fry board - direct driving the tx antenna
   pwm_set_dt(&pwms[0], PERIOD, PULSE);
-  return 1;
+  return 0;
 }

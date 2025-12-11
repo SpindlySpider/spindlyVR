@@ -32,6 +32,7 @@ int setup_sensors() {
   if (ret != 0) {
     return ret;
   }
+  return 0;
 }
 
 int read_sensors() {
@@ -50,51 +51,88 @@ int read_sensors() {
   raw_sensor_data.mag_y = mag_data.y;
   raw_sensor_data.mag_z = mag_data.z;
 
-  // printk("acc | x:%.2f | y:%.2f | z:%.2f |\ngyro | x:%.2f | y:%.2f | z:%.2f \n "
-  //        "mag | x%d | y%d | z%d \n",
+  // printk("---- before raw\n");
+  // printk("acc | x:%.2f | y:%.2f | z:%.2f |\ngyro | x:%.2f | y:%.2f | z:%.2f "
+  //        "\nmag | x%d | y%d | z%d \n",
   //        raw_sensor_data.accel_x, raw_sensor_data.accel_y,
   //        raw_sensor_data.accel_z, raw_sensor_data.gyro_x,
-  //        raw_sensor_data.gyro_y, raw_sensor_data.gyro_z, raw_sensor_data.mag_x,
-  //        raw_sensor_data.mag_y, raw_sensor_data.mag_z);
+  //        raw_sensor_data.gyro_y, raw_sensor_data.gyro_z,
+  //        raw_sensor_data.mag_x, raw_sensor_data.mag_y,
+  //        raw_sensor_data.mag_z);
 
   return 0;
 }
 
 int convert_raw(struct sensor_data_struct *data) {
   // convert accelerometer to G's
-  data->accel_x = data->accel_x / ACCEL_SENSITIVITY_2G;
-  data->accel_y = data->accel_y / ACCEL_SENSITIVITY_2G;
-  data->accel_z = data->accel_z / ACCEL_SENSITIVITY_2G;
+  // data->accel_x = data->accel_x / ACCEL_SENSITIVITY_2G;
+  // data->accel_y = data->accel_y / ACCEL_SENSITIVITY_2G;
+  // data->accel_z = data->accel_z / ACCEL_SENSITIVITY_2G;
 
-  data->gyro_x = (data->gyro_x / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
-  data->gyro_y = (data->gyro_y / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
-  data->gyro_z = (data->gyro_z / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
+  data->accel_x /= 9.81f;
+  data->accel_y /= 9.81f;
+  data->accel_z /= 9.81f;
+
+  // data->accel_z = data->accel_z;
+
+  // data->gyro_x = (data->gyro_x / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
+  // data->gyro_y = (data->gyro_y / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
+  // data->gyro_z = (data->gyro_z / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
+
+  data->mag_x = data->mag_x;
+  data->mag_z = data->mag_z;
+
+  // printk("---- after raw\n");
+  // //
+  // printk("acc | x:%.2f | y:%.2f | z:%.2f |\ngyro | x:%.2f | y:%.2f | z:%.2f "
+  //        "\nmag | x%d | y%d | z%d \n",
+  //        raw_sensor_data.accel_x, raw_sensor_data.accel_y,
+  //        raw_sensor_data.accel_z, raw_sensor_data.gyro_x,
+  //        raw_sensor_data.gyro_y, raw_sensor_data.gyro_z,
+  //        raw_sensor_data.mag_x, raw_sensor_data.mag_y,
+  //        raw_sensor_data.mag_z);
   return 0;
 }
 
 void update_madgwick(struct sensor_data_struct *data) {
-  MadgwickAHRSupdate(data->gyro_x, data->gyro_y, data->gyro_z, data->accel_x,
-                     data->accel_y, data->accel_z, data->mag_x, data->mag_y,
-                     data->mag_z);
+  MadgwickAHRSupdate(data->gyro_x, -data->gyro_z, data->gyro_y, data->accel_x,
+                     -data->accel_z, data->accel_y, data->mag_x, -data->mag_z,
+                     -data->mag_y);
+  //
+  // MadgwickAHRSupdate(0.0, 0.0, 0.0, data->accel_x, -data->accel_z,
+  // data->accel_y, data->mag_x, -data->mag_z, -data->mag_y);
+
+  // MadgwickAHRSupdateIMU(data->gyro_x, -data->gyro_z, data->gyro_y,
+  // data->accel_x, -data->accel_z, data->accel_y);
 }
 
 void run_orientation_loop() {
   setup_sensors();
+  static int startup_counter = 0;
   while (1) {
     read_sensors();
     convert_raw(&raw_sensor_data);
     update_madgwick(&raw_sensor_data);
 
+    if (startup_counter <= 1000) {
+      startup_counter++;
+      beta = 5.0f;
+    } else {
+      // beta = 0.2f;
+      beta = 0.8f;
+    }
+
     static int print_counter = 0;
-    if (print_counter++ >= 100) {
+    if (print_counter++ >= 5) {
 
       // q0 = W (Scalar), q1 = X, q2 = Y, q3 = Z
-      printk("%.4f,%.4f,%.4f,%.4f\n", (double)q0,
-             (double)q1, (double)q2, (double)q3);
-
+      printk("%.4f,%.4f,%.4f,%.4f\n", (double)q0, (double)q1, (double)q2,
+             (double)q3);
+      //
       print_counter = 0;
     }
 
-    k_msleep(10);
+    k_msleep(5);
+    // k_msleep(500);
   }
 }

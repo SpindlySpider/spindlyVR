@@ -37,27 +37,13 @@
 // #define MAG_SCALE_X 1
 // #define MAG_SCALE_Y 1
 // #define MAG_SCALE_Z 1
-// #define MAG_OFFSET_X  286.50
-// #define MAG_OFFSET_Y  -69.00
-// #define MAG_OFFSET_Z  -24.00
-// #define MAG_SCALE_X   1.0117
-// #define MAG_SCALE_Y   0.9971
-// #define MAG_SCALE_Z   0.9914
 
-
-// #define MAG_OFFSET_X  371.50
-// #define MAG_OFFSET_Y  -69.50
-// #define MAG_OFFSET_Z  -32.50
-// #define MAG_SCALE_X   1.1358
-// #define MAG_SCALE_Y   0.9372
-// #define MAG_SCALE_Z   0.9500
-
-#define MAG_OFFSET_X  277.00
-#define MAG_OFFSET_Y  -63.00
-#define MAG_OFFSET_Z  -30.00
-#define MAG_SCALE_X   1.0000
-#define MAG_SCALE_Y   1.0019
-#define MAG_SCALE_Z   0.9981
+#define MAG_OFFSET_X  262.00
+#define MAG_OFFSET_Y  -71.00
+#define MAG_OFFSET_Z  -10.00
+#define MAG_SCALE_X   0.9842
+#define MAG_SCALE_Y   1.0013
+#define MAG_SCALE_Z   1.0149
 
 LOG_MODULE_REGISTER(qmc5883p, LOG_LEVEL_INF);
 // device pointer
@@ -77,7 +63,7 @@ int qmc_write_reg(const struct device *i2c_dev, uint8_t reg, uint8_t value) {
 }
 
 int setup_qmc5883p(const struct device *i2c_dev) {
-  // set payload here to start configutation after establishing i2c;
+  // set payload here to start configuration after establishing i2c;
   // check device is ready
   if (!device_is_ready(i2c_dev)) {
     LOG_ERR("I2C bus is not ready\n");
@@ -98,11 +84,10 @@ int setup_qmc5883p(const struct device *i2c_dev) {
     LOG_ERR("Could not soft reset qmc5883p, exiting with error: %d\n", ret);
     return ret;
   }
-  // Wait for reset to complete (10ms is usually plenty)
+  // wait for reset
   k_msleep(10);
 
-  // 2. Enable Set/Reset Period (CRITICAL STEP)
-  // Write 0x01 to CTRL_REG_2 (0x0B) to turn on the measurement loop
+  // turn on measurement loop
   ret = qmc_write_reg(i2c_dev, CTRL_REG_2, 0x01);
   if (ret != 0) {
     LOG_ERR("Could not set FBR/Set-Reset, error: %d\n", ret);
@@ -160,6 +145,7 @@ int qmc_calibration_routine(const struct device *i2c_dev) {
 
   for (int i = 0; i < 6000; i++) {
     if (qmc_read_sensor_data(i2c_dev, &data) == 0) {
+      // printk("%d,%d,%d\n", data.x, data.y, data.z);
       // Update Min/Max for X
       if (data.x < min_x)
         min_x = data.x;
@@ -181,12 +167,12 @@ int qmc_calibration_routine(const struct device *i2c_dev) {
     k_msleep(10);
   }
 
-  // --- 1. HARD IRON (OFFSETS) ---
+  // hard iron offsets
   float off_x = (max_x + min_x) / 2.0f;
   float off_y = (max_y + min_y) / 2.0f;
   float off_z = (max_z + min_z) / 2.0f;
 
-  // --- 2. SOFT IRON (SCALING) ---
+  // soft iron scale
   float scale_x = (max_x - min_x) / 2.0f;
   float scale_y = (max_y - min_y) / 2.0f;
   float scale_z = (max_z - min_z) / 2.0f;
@@ -200,12 +186,10 @@ int qmc_calibration_routine(const struct device *i2c_dev) {
   printk("\n\n--- CALIBRATION RESULTS ---\n");
   printk("Copy these macros into your code:\n\n");
 
-  // Print Hard Iron Offsets
   printk("#define MAG_OFFSET_X  %.2f\n", off_x);
   printk("#define MAG_OFFSET_Y  %.2f\n", off_y);
   printk("#define MAG_OFFSET_Z  %.2f\n", off_z);
 
-  // Print Soft Iron Scale Factors
   printk("#define MAG_SCALE_X   %.4f\n", scale_factor_x);
   printk("#define MAG_SCALE_Y   %.4f\n", scale_factor_y);
   printk("#define MAG_SCALE_Z   %.4f\n", scale_factor_z);
