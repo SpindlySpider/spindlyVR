@@ -11,5 +11,7 @@ target_sources(app PRIVATE
   src/imu.c
   src/adc.c
   src/orientation_handle.c
+  src/data_handle.c
+  src/transmit_data.c
   src/lib/MadgwickAHRS.c
 )

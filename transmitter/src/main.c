@@ -2,6 +2,8 @@
 #include "orientation_handle.h"
 #include "pwm.h"
 #include "qmc5883p.h"
+#include "transmit_data.h"
+
 #include "zephyr/device.h"
 #include "zephyr/sys/util_macro.h"
 #include <zephyr/drivers/sensor.h>
@@ -33,6 +35,13 @@ int main(void) {
 
   printk("All pins are ready!\n");
 
+
+  printk("setting up BlueTooth...\n");
+  _err = init_transmit();
+  if (_err == 0) {
+    return 0;
+  }
+
   if (IS_ENABLED(CONFIG_RUN_QMC_CALIBRATION)) {
     static const struct device *i2c_dev =
         DEVICE_DT_GET(DT_BUS(DT_NODELABEL(qmc_5883p)));
@@ -46,11 +55,14 @@ int main(void) {
   // Another for getting amplitude and phase of tx
   // and finally one for broadcasting data to other devices
   //
-  //
   // get orientation
-  //
-  run_orientation_loop();
 
+  // NOTE: uncomment once finished with BT tests
+  // run_orientation_loop();
+
+  while (1){
+    transmit();
+  }
 
 
   // get amp and phase of tx - to allow for dynamic broadcasting at 32khz?
