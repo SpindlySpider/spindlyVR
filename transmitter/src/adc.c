@@ -17,6 +17,8 @@ struct adc_sequence sequence = {
 // Get ADC transmission amplitude pin
 static const struct adc_dt_spec tx_adc = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
+// TODO: add closed loop duty cycle adjustment
+
 int read_adc() {
   // NOTE: may need to reset buffer variable here, if program crashes in future
   // check this

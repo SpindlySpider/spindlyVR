@@ -15,7 +15,6 @@
 #define CTRL_REG_1 0x0A
 #define CTRL_REG_2 0x0B
 #define START_REG 0x01
-// #define I2C_NODE DT_NODELABEL(i2c0)
 #define QMC5883P_ADDR 0x2c
 
 // configuration
@@ -31,19 +30,19 @@
 // bitwise shift and or
 #define CONFIG ((OSR2 << 6) | (OSR1 << 4) | (ODR << 2) | MODE)
 
-// #define MAG_OFFSET_X 0
-// #define MAG_OFFSET_Y 0
-// #define MAG_OFFSET_Z 0
-// #define MAG_SCALE_X 1
-// #define MAG_SCALE_Y 1
-// #define MAG_SCALE_Z 1
+#define MAG_OFFSET_X 262.00
+#define MAG_OFFSET_Y -71.00
+#define MAG_OFFSET_Z -10.00
+#define MAG_SCALE_X 0.9842
+#define MAG_SCALE_Y 1.0013
+#define MAG_SCALE_Z 1.0149
 
-#define MAG_OFFSET_X  262.00
-#define MAG_OFFSET_Y  -71.00
-#define MAG_OFFSET_Z  -10.00
-#define MAG_SCALE_X   0.9842
-#define MAG_SCALE_Y   1.0013
-#define MAG_SCALE_Z   1.0149
+float mag_offset_x = MAG_OFFSET_X;
+float mag_offset_y = MAG_OFFSET_Y;
+float mag_offset_z = MAG_OFFSET_Z;
+float mag_scale_x = MAG_SCALE_X;
+float mag_scale_y = MAG_SCALE_Y;
+float mag_scale_z = MAG_SCALE_Z;
 
 LOG_MODULE_REGISTER(qmc5883p, LOG_LEVEL_INF);
 // device pointer
@@ -119,9 +118,9 @@ int qmc_read_sensor_data(const struct device *i2c_dev,
     int16_t x = (raw_data[1] << 8) | raw_data[0];
     int16_t y = (raw_data[3] << 8) | raw_data[2];
     int16_t z = (raw_data[5] << 8) | raw_data[4];
-    buffer->x = (x - MAG_OFFSET_X) * MAG_SCALE_X;
-    buffer->y = (y - MAG_OFFSET_Y) * MAG_SCALE_Y;
-    buffer->z = (z - MAG_OFFSET_Z) * MAG_SCALE_Z;
+    buffer->x = (x - mag_offset_x) * mag_scale_x;
+    buffer->y = (y - mag_offset_y) * mag_scale_y;
+    buffer->z = (z - mag_offset_z) * mag_scale_z;
   } else {
     // failed to get register values set buffer to 0 and warn
     buffer->x = 0;
@@ -142,6 +141,9 @@ int qmc_calibration_routine(const struct device *i2c_dev) {
   int16_t min_x = 32000, max_x = -32000;
   int16_t min_y = 32000, max_y = -32000;
   int16_t min_z = 32000, max_z = -32000;
+  // set offsets to 0 and scale to 1 to get raw data
+  mag_offset_x,mag_offset_y,mag_offset_z = 0.0f;
+  mag_scale_x,mag_scale_y,mag_scale_z = 1.0f;
 
   for (int i = 0; i < 6000; i++) {
     if (qmc_read_sensor_data(i2c_dev, &data) == 0) {
@@ -172,7 +174,7 @@ int qmc_calibration_routine(const struct device *i2c_dev) {
   float off_y = (max_y + min_y) / 2.0f;
   float off_z = (max_z + min_z) / 2.0f;
 
-  // soft iron scale
+  // soft iron scale - this is probably not the correct way to do it
   float scale_x = (max_x - min_x) / 2.0f;
   float scale_y = (max_y - min_y) / 2.0f;
   float scale_z = (max_z - min_z) / 2.0f;

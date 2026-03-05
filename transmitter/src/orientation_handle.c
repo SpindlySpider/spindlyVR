@@ -2,6 +2,8 @@
 #include "imu.h"
 #include "lib/MadgwickAHRS.h"
 #include "qmc5883p.h"
+#include "zephyr/device.h"
+#include "zephyr/sys/util_macro.h"
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
@@ -9,11 +11,9 @@
 
 // define constants
 #define I2C DT_NODELABEL(i2c0)
-#define GYRO_SENSITIVITY_2000 16.4f
-#define ACCEL_SENSITIVITY_2G 16384.0f
-#define DEG_TO_RAD 0.01745329f
+#define GRAVITY 9.81f
 
-static const struct device *i2c_dev = DEVICE_DT_GET(I2C);
+static const struct device *i2c_dev = DEVICE_DT_GET(DT_BUS(DT_NODELABEL(qmc_5883p)));
 
 // purpose of this file is to convert all sensor data into quaternions using
 // Madgwick filter
@@ -51,46 +51,21 @@ int read_sensors() {
   raw_sensor_data.mag_y = mag_data.y;
   raw_sensor_data.mag_z = mag_data.z;
 
-  // printk("---- before raw\n");
-  // printk("acc | x:%.2f | y:%.2f | z:%.2f |\ngyro | x:%.2f | y:%.2f | z:%.2f "
-  //        "\nmag | x%d | y%d | z%d \n",
-  //        raw_sensor_data.accel_x, raw_sensor_data.accel_y,
-  //        raw_sensor_data.accel_z, raw_sensor_data.gyro_x,
-  //        raw_sensor_data.gyro_y, raw_sensor_data.gyro_z,
-  //        raw_sensor_data.mag_x, raw_sensor_data.mag_y,
-  //        raw_sensor_data.mag_z);
-
+  if (IS_ENABLED(CONFIG_DEBUG_SHOW_SENSOR_DATA)) {
+    printk("acc | x:%.2f | y:%.2f | z:%.2f |\ngyro | x:%.2f | y:%.2f | z:%.2f "
+           "\nmag | x%d | y%d | z%d \n",
+           raw_sensor_data.accel_x, raw_sensor_data.accel_y,
+           raw_sensor_data.accel_z, raw_sensor_data.gyro_x,
+           raw_sensor_data.gyro_y, raw_sensor_data.gyro_z,
+           raw_sensor_data.mag_x, raw_sensor_data.mag_y, raw_sensor_data.mag_z);
+  }
   return 0;
 }
 
 int convert_raw(struct sensor_data_struct *data) {
-  // convert accelerometer to G's
-  // data->accel_x = data->accel_x / ACCEL_SENSITIVITY_2G;
-  // data->accel_y = data->accel_y / ACCEL_SENSITIVITY_2G;
-  // data->accel_z = data->accel_z / ACCEL_SENSITIVITY_2G;
-
-  data->accel_x /= 9.81f;
-  data->accel_y /= 9.81f;
-  data->accel_z /= 9.81f;
-
-  // data->accel_z = data->accel_z;
-
-  // data->gyro_x = (data->gyro_x / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
-  // data->gyro_y = (data->gyro_y / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
-  // data->gyro_z = (data->gyro_z / GYRO_SENSITIVITY_2000) * DEG_TO_RAD;
-
-  data->mag_x = data->mag_x;
-  data->mag_z = data->mag_z;
-
-  // printk("---- after raw\n");
-  // //
-  // printk("acc | x:%.2f | y:%.2f | z:%.2f |\ngyro | x:%.2f | y:%.2f | z:%.2f "
-  //        "\nmag | x%d | y%d | z%d \n",
-  //        raw_sensor_data.accel_x, raw_sensor_data.accel_y,
-  //        raw_sensor_data.accel_z, raw_sensor_data.gyro_x,
-  //        raw_sensor_data.gyro_y, raw_sensor_data.gyro_z,
-  //        raw_sensor_data.mag_x, raw_sensor_data.mag_y,
-  //        raw_sensor_data.mag_z);
+  data->accel_x /= GRAVITY;
+  data->accel_y /= GRAVITY;
+  data->accel_z /= GRAVITY;
   return 0;
 }
 
@@ -98,10 +73,6 @@ void update_madgwick(struct sensor_data_struct *data) {
   MadgwickAHRSupdate(data->gyro_x, -data->gyro_z, data->gyro_y, data->accel_x,
                      -data->accel_z, data->accel_y, data->mag_x, -data->mag_z,
                      -data->mag_y);
-  //
-  // MadgwickAHRSupdate(0.0, 0.0, 0.0, data->accel_x, -data->accel_z,
-  // data->accel_y, data->mag_x, -data->mag_z, -data->mag_y);
-
   // MadgwickAHRSupdateIMU(data->gyro_x, -data->gyro_z, data->gyro_y,
   // data->accel_x, -data->accel_z, data->accel_y);
 }
@@ -109,30 +80,34 @@ void update_madgwick(struct sensor_data_struct *data) {
 void run_orientation_loop() {
   setup_sensors();
   static int startup_counter = 0;
+
   while (1) {
     read_sensors();
     convert_raw(&raw_sensor_data);
-    update_madgwick(&raw_sensor_data);
+    if (!IS_ENABLED(CONFIG_DEBUG_SHOW_SENSOR_DATA)) {
+      update_madgwick(&raw_sensor_data);
 
-    if (startup_counter <= 1000) {
-      startup_counter++;
-      beta = 5.0f;
+      if (startup_counter <= 1000) {
+        // fix to true north
+        startup_counter++;
+        beta = 5.0f;
+      } else {
+        beta = 0.8f;
+      }
+
+      static int print_counter = 0;
+      if (print_counter++ >= 5) {
+
+        // q0 = W (Scalar), q1 = X, q2 = Y, q3 = Z
+        printk("%.4f,%.4f,%.4f,%.4f\n", (double)q0, (double)q1, (double)q2,
+               (double)q3);
+
+        print_counter = 0;
+      }
+      // update thread structure
+      k_msleep(5);
     } else {
-      // beta = 0.2f;
-      beta = 0.8f;
+      k_msleep(500);
     }
-
-    static int print_counter = 0;
-    if (print_counter++ >= 5) {
-
-      // q0 = W (Scalar), q1 = X, q2 = Y, q3 = Z
-      printk("%.4f,%.4f,%.4f,%.4f\n", (double)q0, (double)q1, (double)q2,
-             (double)q3);
-      //
-      print_counter = 0;
-    }
-
-    k_msleep(5);
-    // k_msleep(500);
   }
 }

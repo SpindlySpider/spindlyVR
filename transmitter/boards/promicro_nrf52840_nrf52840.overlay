@@ -18,6 +18,8 @@
       pwms = <&pwm0 1 2000 PWM_POLARITY_NORMAL>;
     };
   };
+
+
 };
 
 // enable ADC and PWM
@@ -56,6 +58,10 @@
       status = "okay";
       gyro-fs = <2000>;
       accel-fs = <2>;
+  };
+  qmc_5883p: qmc_5883p@0 {
+    // use this to set which i2c bus you are using for qmc_5883p
+    reg = <0x0>;
   };
 };
 

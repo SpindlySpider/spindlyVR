@@ -1,55 +1,61 @@
-#include "pwm.h"
 #include "adc.h"
 #include "orientation_handle.h"
+#include "pwm.h"
 #include "qmc5883p.h"
 #include "zephyr/device.h"
+#include "zephyr/sys/util_macro.h"
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
-//TODO: move device tree defs into here so they are configurable
-
-// define constants
-#define I2C DT_NODELABEL(i2c0)
-
 int32_t _err;
-
-static const struct device *i2c_dev = DEVICE_DT_GET(I2C);
 
 int main(void) {
 
-  // printk("Starting...\n");
+  printk("Starting...\n");
 
-  // printk("setting up ADC...\n");
+  printk("setting up ADC...\n");
   _err = setup_adc();
   if (_err == 0) {
     return 0;
   }
-  // printk("setting up PWM...\n");
+  printk("setting up PWM...\n");
   _err = setup_pwm();
   if (_err != 0) {
     return 0;
   }
-  
+
+  printk("setting up Sensors...\n");
   _err = setup_sensors();
   if (_err != 0) {
     return _err;
   }
 
-  // printk("All pins are ready!\n");
+  printk("All pins are ready!\n");
 
-  // qmc_calibration_routine(i2c_dev);
-  // run_orientation_loop();
+  if (IS_ENABLED(CONFIG_RUN_QMC_CALIBRATION)) {
+    static const struct device *i2c_dev =
+        DEVICE_DT_GET(DT_BUS(DT_NODELABEL(qmc_5883p)));
+    qmc_calibration_routine(i2c_dev);
+    // exit from function
+    return 0;
+  }
 
-  // while (1) {
-    // _err = read_adc();
-    // if (_err == 0) {
-      // return 0;
-    // }
-    // read_sensors();
-    // printk("mag data: x:%d y:%d z:%d\n",mag_data.x,mag_data.y,mag_data.z);
-    // k_msleep(500);
-  // }
+  // TODO: need to multi thread here
+  // One thread for orientation retrieval
+  // Another for getting amplitude and phase of tx
+  // and finally one for broadcasting data to other devices
+  //
+  //
+  // get orientation
+  //
+  run_orientation_loop();
+
+
+
+  // get amp and phase of tx - to allow for dynamic broadcasting at 32khz?
+  // broadcast info - broadcast info to reciever nodes as specified in paper
+  // repeat - we can adjust to specific htz
 
   return 0;
 }

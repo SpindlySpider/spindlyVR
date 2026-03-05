@@ -1,0 +1,14 @@
+config DEBUG_SHOW_SENSOR_DATA
+  bool "Show sensor data instead of quaternions"
+  default n
+  help
+    If this is enabled, the output will be accelerometer, gyro, and magnetometer data
+
+
+config RUN_QMC_CALIBRATION
+  bool "Run calibration routine for magnetometer"
+  default n
+  help
+    If this is enabled,  instead of running madgwick filter, it will run the calibration routine for the magnetometer, and output constants for you to update in IMU.c
+
+source "Kconfig.zephyr"
