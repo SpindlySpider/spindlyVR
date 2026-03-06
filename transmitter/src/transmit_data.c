@@ -1,4 +1,7 @@
 #include "data_handle.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
@@ -10,15 +13,17 @@
 #include <zephyr/bluetooth/hci.h>
 
 // TODO: transmit phase and quaternion data
-
-// NOTE: first 2 items are manufacturer specific data
 //
-// static uint8_t tx_buffer[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-static struct data_container_t data_container;
 
-// static const struct bt_data ad[] = {
-//     BT_DATA(BT_DATA_MANUFACTURER_DATA, tx_buffer, sizeof(tx_buffer)),
-// };
+static struct data_container_t data_container;
+// floats are 4 bytes so 2 bytes for manufacture ID, 20 bytes for quaternion and
+// phase data = 22 bytes total
+uint8_t mfg_data[22] = { 0xff, 0xff };
+
+// NOTE: this may be an issue, check if data container dynamically updates
+static struct bt_data ad[] = {
+    BT_DATA(BT_DATA_MANUFACTURER_DATA, mfg_data, sizeof(mfg_data)),
+    BT_DATA(BT_DATA_NAME_COMPLETE, "sVR", 3)};
 
 int init_transmit() {
   // TODO: move code here
@@ -46,42 +51,34 @@ int init_transmit() {
     printk("Using bluetooth identity (ID %d)\n", err);
   }
 
-  printk("Bluetooth initialized\n");
-
   return 0;
 }
 
-struct bt_data create_payload(){
+void create_payload() {
   // update local container
   read_data(&data_container);
-  // cast data into bytes (first bytes are manufacture specific data)
-  uint8_t tx_buffer[] = {
-    0xff,
-    0xff,
-    (uint8_t)data_container.q0,
-    (uint8_t)data_container.q1,
-    (uint8_t)data_container.q2,
-    (uint8_t)data_container.q3,
-    (uint8_t)data_container.tx_phase,
-  };
-
-  struct bt_data ad =  BT_DATA(BT_DATA_MANUFACTURER_DATA, tx_buffer, sizeof(tx_buffer)); 
-  return ad;
+  // cast data into bytes (first 2 bytes are manufacture specific data)
+  memcpy(&mfg_data[2], &data_container.q0, 4);
+  memcpy(&mfg_data[6], &data_container.q1, 4);
+  memcpy(&mfg_data[10], &data_container.q2, 4);
+  memcpy(&mfg_data[14], &data_container.q3, 4);
+  memcpy(&mfg_data[18], &data_container.tx_phase, 4);
 }
 
 int transmit() {
   // maybe access quaternion and phase data and then broadcast that?
   // TODO: single broadcast
   int err;
-  // construct payload
-  struct bt_data ad = create_payload();
 
+  create_payload();
   // prints quaternion and phase values
   printk("Broadcasting data: %.2f, %.2f, %.2f, %.2f | %.4f\n",
-         data_container.q0, data_container.q1, data_container.q2, data_container.q3, data_container.tx_phase);
+         data_container.q0, data_container.q1, data_container.q2,
+         data_container.q3, data_container.tx_phase);
 
   // broadcast
-  err = bt_le_adv_start(BT_LE_ADV_NCONN_IDENTITY, &ad, sizeof(ad), NULL, 0);
+  // TODO: turn ad back into an array so we can put more options in the array
+  err = bt_le_adv_start(BT_LE_ADV_NCONN_IDENTITY, ad, ARRAY_SIZE(ad), NULL, 0);
 
   if (err) {
     printk("Advertising failed to start (err %d)\n", err);
@@ -89,7 +86,8 @@ int transmit() {
   }
 
   k_msleep(1000);
-  // NOTE: can change this so that we update broadcast message instead of stop and start
+  // NOTE: can change this so that we update broadcast message instead of stop
+  // and start
   err = bt_le_adv_stop();
   if (err) {
     printk("Advertising failed to stop (err %d)\n", err);

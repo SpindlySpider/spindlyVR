@@ -16,29 +16,31 @@ int main(void) {
 
   printk("Starting...\n");
 
-  printk("setting up ADC...\n");
-  _err = setup_adc();
-  if (_err == 0) {
-    return 0;
-  }
-  printk("setting up PWM...\n");
-  _err = setup_pwm();
-  if (_err != 0) {
-    return 0;
-  }
-
-  printk("setting up Sensors...\n");
-  _err = setup_sensors();
-  if (_err != 0) {
-    return _err;
-  }
+  // NOTE: disabled other setups to test bluetooth
+  //
+  // printk("setting up ADC...\n");
+  // _err = setup_adc();
+  // if (_err == 0) {
+  //   return 0;
+  // }
+  // printk("setting up PWM...\n");
+  // _err = setup_pwm();
+  // if (_err != 0) {
+  //   return 0;
+  // }
+  //
+  // printk("setting up Sensors...\n");
+  // _err = setup_sensors();
+  // if (_err != 0) {
+  //   return _err;
+  // }
 
   printk("All pins are ready!\n");
 
 
   printk("setting up BlueTooth...\n");
   _err = init_transmit();
-  if (_err == 0) {
+  if (_err != 0) {
     return 0;
   }
 
