@@ -13,5 +13,6 @@ target_sources(app PRIVATE
   src/orientation_handle.c
   src/data_handle.c
   src/transmit_data.c
+  src/receive_data.c
   src/lib/MadgwickAHRS.c
 )

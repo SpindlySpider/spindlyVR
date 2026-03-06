@@ -3,6 +3,7 @@
 #include "pwm.h"
 #include "qmc5883p.h"
 #include "transmit_data.h"
+#include "receive_data.h"
 
 #include "zephyr/device.h"
 #include "zephyr/sys/util_macro.h"
@@ -62,9 +63,11 @@ int main(void) {
   // NOTE: uncomment once finished with BT tests
   // run_orientation_loop();
 
-  while (1){
-    transmit();
-  }
+  receiver_start();
+  // while (1){
+  //   // transmit();
+  // }
+
 
 
   // get amp and phase of tx - to allow for dynamic broadcasting at 32khz?
