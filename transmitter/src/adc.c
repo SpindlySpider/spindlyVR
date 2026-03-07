@@ -1,12 +1,21 @@
-
 #include "adc.h"
+#include "data_handle.h"
+#include <math.h>
+#include <stdint.h>
+#include <zephyr/drivers/adc.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/drivers/adc.h>
+
+#define PI 3.14159265f
 
 int16_t buf;
 int32_t val_mv;
 int32_t err;
+
+// NOTE: store 100(default) signal entries for phase and amp calculation
+static float amp_bias;
+static int32_t signal_arr[CONFIG_TX_SAMPLE_NUMBER] = {};
+struct cached_sin_cos_t cached_s_c = {.sine = {}, .cosine = {}};
 
 struct adc_sequence sequence = {
     .buffer = &buf,
@@ -17,9 +26,33 @@ struct adc_sequence sequence = {
 // Get ADC transmission amplitude pin
 static const struct adc_dt_spec tx_adc = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
+int tx_matched_filter(uint16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
+                      struct data_container_t *data_container) {
+  // NOTE: signal buf should be an array of samples from ADC
+  float sin_accumulation = 0.0f;
+  float cos_accumulation = 0.0f;
+  float amp = 0.0f;
+  float phase = 0.0f;
+  for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
+    sin_accumulation = sin_accumulation + (cached_s_c->sine[i] * signal_buf[i]);
+    cos_accumulation =
+        cos_accumulation + (cached_s_c->cosine[i] * signal_buf[i]);
+  }
+  amp = ((sqrtf(powf(sin_accumulation, 2) + powf(cos_accumulation, 2)) /
+          CONFIG_TX_SAMPLE_NUMBER)) *
+        amp_bias;
+  phase = atan2f(sin_accumulation, cos_accumulation);
+
+  // update container
+  update_signal_data(amp, phase);
+
+  return 0;
+}
+
 // TODO: add closed loop duty cycle adjustment
 
-int read_adc() {
+int read_adc(int32_t *result) {
+  // result is a pointer to store result
   // NOTE: may need to reset buffer variable here, if program crashes in future
   // check this
   err = adc_read(tx_adc.dev, &sequence);
@@ -34,8 +67,28 @@ int read_adc() {
     printk(" (value in mV not available)\n");
   } else {
     printk(" = %d mV\n", val_mv);
+    *result = val_mv;
   }
   return 1;
+}
+
+int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c) {
+  // cache values of target sin and cos wave for use during execution
+  for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
+    // *1000 because in KHZ
+    float time = (float)i / (float)CONFIG_TX_ADC_FREQUENCY;
+    float angle = 2.0f * PI * (CONFIG_TX_ADC_FREQUENCY * 1000.0f) * time;
+    cached_s_c->sine[i] = sin(angle);
+    cached_s_c->cosine[i] = cos(angle);
+    // get sine and cosine for every number of signal
+  }
+
+  // NOTE: 12 is comming from ADC bit resolution, this should probably be place
+  // in the KCONFIG
+  amp_bias = 3.3 / powf(2, 12);
+
+  // NOTE: need to store how long to sleep
+  return 0;
 }
 
 int setup_adc() {
@@ -62,3 +115,39 @@ int setup_adc() {
   return 1;
 }
 
+int fill_signal(int *signal_arr) {
+  // function used to get signal data
+  for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
+    read_adc(&signal_arr[i]);
+    // sleep so that it captures signal
+    k_sleep(K_MSEC(1000 / CONFIG_TX_ADC_FREQUENCY));
+  }
+  return 0;
+}
+
+// TODO: make a thread function which keeps track of singnal buffer and updates
+// shared data var would need to call read ADC a couple of times and then save
+// result in buffer
+
+void start_adc_thread(struct data_container_t *data_container) {
+  // this function acts as entry point for starting a thread
+  int err;
+  struct cached_sin_cos_t sin_cos;
+  err = setup_sin_cos_cache(&sin_cos);
+  if (err != 0) {
+    printk("Failed to setup sine and cosine cache: %d", err);
+    // NOTE: should continue and read to read again
+  }
+
+  while (1) {
+    err = read_adc();
+    // need to get all signal data
+    if (err = !0) {
+      printk("ADC error: %d", err);
+      // NOTE: should continue and read to read again
+      continue;
+    }
+
+    // sleep so it does this at 100 hz
+  }
+}

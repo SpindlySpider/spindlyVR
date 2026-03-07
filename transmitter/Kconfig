@@ -11,4 +11,28 @@ config RUN_QMC_CALIBRATION
   help
     If this is enabled,  instead of running madgwick filter, it will run the calibration routine for the magnetometer, and output constants for you to update in IMU.c
 
+config TX_SAMPLE_NUMBER
+  int "Number of samples to use when calculating Tx phase and amp"
+  default 100
+  help
+    Number of samples to use when calculating Tx phase and amp, higher numbers will increase accuracy at cost of performance.
+
+config TX_BROADCAST_FREQUENCY
+  int "Frequency of transmitter broadcasting bluetooth packets (Hz)"
+  default 100
+  help
+    How frequently the transmitter broadcast packets containing quaternion and phase data to receivers
+
+config TX_PWM_FREQUENCY
+  int "Frequency of transmitter broadcasting signal (KHz)"
+  default 32
+  help
+    How frequently transmitter antenna sends out signal in KHZ
+
+config TX_ADC_FREQUENCY
+  int "Frequency of ADC checking transmitter coils voltage(KHz)"
+  default 128
+  help
+    Frequency of ADC checking transmitter coil voltage
+
 source "Kconfig.zephyr"
