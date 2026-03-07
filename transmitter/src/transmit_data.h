@@ -4,5 +4,6 @@
 int init_transmit();
 int transmit();
 struct bt_data create_payload();
+void start_transmit_thread(void *, void *, void *);
 
 #endif

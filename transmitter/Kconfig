@@ -1,9 +1,14 @@
 config DEBUG_SHOW_SENSOR_DATA
-  bool "Show sensor data instead of quaternions"
+  bool "Show sensor data"
   default n
   help
     If this is enabled, the output will be accelerometer, gyro, and magnetometer data
 
+config DEBUG_SHOW_QUATERNIONS_DATA
+  bool "Show quaternion data"
+  default n
+  help
+    If this is enabled, quaternions will be output.
 
 config RUN_QMC_CALIBRATION
   bool "Run calibration routine for magnetometer"
@@ -31,7 +36,7 @@ config TX_PWM_FREQUENCY
 
 config TX_ADC_FREQUENCY
   int "Frequency of ADC checking transmitter coils voltage(KHz)"
-  default 128
+  default 100
   help
     Frequency of ADC checking transmitter coil voltage
 

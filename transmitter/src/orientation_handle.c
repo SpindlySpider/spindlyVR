@@ -1,3 +1,4 @@
+#include "data_handle.h"
 #include "orientation_handle.h"
 #include "imu.h"
 #include "lib/MadgwickAHRS.h"
@@ -13,13 +14,14 @@
 #define I2C DT_NODELABEL(i2c0)
 #define GRAVITY 9.81f
 
-static const struct device *i2c_dev = DEVICE_DT_GET(DT_BUS(DT_NODELABEL(qmc_5883p)));
+static const struct device *i2c_dev =
+    DEVICE_DT_GET(DT_BUS(DT_NODELABEL(qmc_5883p)));
 
 // purpose of this file is to convert all sensor data into quaternions using
 // Madgwick filter
 
-struct qmc_data mag_data;
-struct sensor_data_struct raw_sensor_data;
+static struct qmc_data mag_data;
+static struct sensor_data_struct raw_sensor_data;
 
 int setup_sensors() {
   int ret;
@@ -77,37 +79,39 @@ void update_madgwick(struct sensor_data_struct *data) {
   // data->accel_x, -data->accel_z, data->accel_y);
 }
 
-void run_orientation_loop() {
+void run_orientation_loop(void *, void *, void *) {
   setup_sensors();
-  static int startup_counter = 0;
+  int startup_counter = 0;
+  int print_counter = 0;
+  bool finished_startup = false;
+  // NOTE: if there are performance issue can move the start up function out of while loop to stop beta reassignment each loop
 
   while (1) {
     read_sensors();
     convert_raw(&raw_sensor_data);
-    if (!IS_ENABLED(CONFIG_DEBUG_SHOW_SENSOR_DATA)) {
-      update_madgwick(&raw_sensor_data);
+    update_madgwick(&raw_sensor_data);
 
-      if (startup_counter <= 1000) {
-        // fix to true north
-        startup_counter++;
-        beta = 5.0f;
-      } else {
-        beta = 0.8f;
-      }
+    if (!finished_startup && startup_counter <= 1000) {
+      // NOTE: fix to true north, start super sensitive and then reduce beta
+      startup_counter++;
+      beta = 5.0f;
+    } else {
+      beta = 0.8f;
+    }
 
-      static int print_counter = 0;
+    if (IS_ENABLED(CONFIG_DEBUG_SHOW_QUATERNIONS_DATA)) {
       if (print_counter++ >= 5) {
-
         // q0 = W (Scalar), q1 = X, q2 = Y, q3 = Z
         printk("%.4f,%.4f,%.4f,%.4f\n", (double)q0, (double)q1, (double)q2,
                (double)q3);
 
         print_counter = 0;
       }
-      // update thread structure
-      k_msleep(5);
-    } else {
-      k_msleep(500);
     }
+
+    // update data container
+    update_orientation_data(q0,q1,q2,q3);
+
+    k_msleep(1000 / CONFIG_TX_BROADCAST_FREQUENCY);
   }
 }

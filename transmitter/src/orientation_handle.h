@@ -23,7 +23,7 @@ int setup_sensors();
 
 int read_sensors();
 
-void run_orientation_loop();
+void run_orientation_loop(void *, void *, void *);
 
 void update_madgwick();
 
