@@ -1,8 +1,9 @@
 #include "data_handle.h"
 #include "orientation_handle.h"
 #include "imu.h"
-#include "lib/MadgwickAHRS.h"
 #include "qmc5883p.h"
+#include "MadgwickAHRS.h"
+
 #include "zephyr/device.h"
 #include "zephyr/sys/util_macro.h"
 #include <zephyr/device.h>
