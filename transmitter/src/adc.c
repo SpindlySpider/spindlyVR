@@ -20,11 +20,14 @@
 #define SAADC_SAMPLE_INTERVAL_US 50
 #define INTERUPT_PRIORITY 6
 
+K_SEM_DEFINE(adc_semaphore, 0, 1);
+
 // setup ADC pin for use
 static nrfx_saadc_channel_t channel =
     NRFX_SAADC_DEFAULT_CHANNEL_SE(SAADC_INPUT_PIN, 0);
+// setup timer
+static nrfx_timer_t timer_inst = NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(2));
 
-K_SEM_DEFINE(adc_semaphore, 0, 1);
 // this variable is a pointer to the full buffer.
 static int16_t *current_buffer_ptr = NULL;
 static uint32_t current_buffer = 0;
@@ -52,7 +55,7 @@ static void saadc_handler(nrfx_saadc_evt_t const *p_event) {
   }
 }
 
-int configure_saadc() {
+int config_saadc() {
   int err;
   // incredibly useful:
   // https://github.com/zephyrproject-rtos/hal_nordic/tree/master/nrfx/samples/src/nrfx_saadc/advanced_non_blocking_internal_timer
@@ -98,23 +101,35 @@ int configure_saadc() {
 }
 
 int config_timer() {
-  uint32_t desired_freq_hz = CONFIG_TX_ADC_FREQUENCY * 1000;
-  uint32_t ticks = 1000000 / desired_freq_hz;
+  // incredibly useful:
+  // https://github.com/zephyrproject-rtos/hal_nordic/tree/master/nrfx/samples/src/nrfx_timer
 
-  nrf_timer_mode_set(NRF_TIMER2, NRF_TIMER_MODE_TIMER);
-  nrf_timer_bit_width_set(NRF_TIMER2, NRF_TIMER_BIT_WIDTH_32);
-  nrf_timer_prescaler_set(NRF_TIMER2, NRF_TIMER_FREQ_1MHz);
+  IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_TIMER2), IRQ_PRIO_LOWEST,
+              nrfx_timer_irq_handler, &timer_inst, 0);
 
-  nrf_timer_cc_set(NRF_TIMER2, NRF_TIMER_CC_CHANNEL0, ticks);
-  nrf_timer_shorts_enable(NRF_TIMER2, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK);
+  uint32_t frequency = NRF_TIMER_BASE_FREQUENCY_GET(timer_inst.p_reg);
 
-  printk("got passed bare-metal timer init\n");
+  nrfx_timer_config_t config = NRFX_TIMER_DEFAULT_CONFIG(frequency);
+
+  err = nrfx_timer_init(&timer_inst, &config, NULL);
+
+  nrfx_timer_clear(&timer_inst);
+
+  // convert kilohertz to micro seconds
+  uint32_t khz_to_us = (uint32_t)(1000 / CONFIG_TX_ADC_FREQUENCY) ;
+  uint32_t desired_ticks = nrfx_timer_us_to_ticks(&timer_inst, khz_to_us);
+
+  nrfx_timer_extended_compare(&timer_inst, NRF_TIMER_CC_CHANNEL0, desired_ticks,
+                              NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
+
+  nrfx_timer_enable(&timer_inst);
+  printk("Started timer\n");
   k_msleep(100);
 
   return 0;
 }
 
-int configure_ppi() {
+int config_ppi() {
   // set up generic PPI
   nrfx_gppi_handle_t gppi_handle;
   nrfx_gppi_handle_t gppi_start;
@@ -214,18 +229,13 @@ void start_adc_thread(void *, void *, void *) {
     // NOTE: should continue and read to read again
   }
 
-  printk("setting up timer\n");
-  k_msleep(1000);
-
-  config_timer();
-
   printk("setting up saadc\n");
 
-  configure_saadc();
+  config_saadc();
 
   printk("setting up ppi\n");
 
-  configure_ppi();
+  config_ppi();
 
   printk("setup ppi\n");
 
@@ -233,9 +243,15 @@ void start_adc_thread(void *, void *, void *) {
 
   nrfx_saadc_mode_trigger();
 
-  nrf_timer_task_trigger(NRF_TIMER2, NRF_TIMER_TASK_START);
+  printk("setting up timer\n");
+  k_msleep(1000);
 
-  printk("ADC setup finished, taking samples at %d Hz\n",CONFIG_TX_BROADCAST_FREQUENCY);
+  // TODO: this can be improved, cycles are wasted constantly scanning ADC,
+  // if we set an event in while loop to activate timer to initiate ADC readings that would be better
+  config_timer();
+
+  printk("ADC setup finished, taking samples at %d Hz\n",
+         CONFIG_TX_BROADCAST_FREQUENCY);
   while (1) {
     // use semaphore to know when samples ready
     k_sem_take(&adc_semaphore, K_FOREVER);

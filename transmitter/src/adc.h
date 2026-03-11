@@ -1,7 +1,7 @@
 #ifndef ADC_H
 #define ADC_H
 
-// #include <zephyr/drivers/adc.h>
+#include <nrfx_saadc.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
@@ -10,9 +10,13 @@ struct cached_sin_cos_t {
   double cosine[CONFIG_TX_SAMPLE_NUMBER];
 };
 
-int read_adc();
+static void saadc_handler(nrfx_saadc_evt_t const *p_event);
 
-int setup_adc();
+int config_saadc();
+
+int config_timer();
+
+int config_ppi();
 
 int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c);
 
