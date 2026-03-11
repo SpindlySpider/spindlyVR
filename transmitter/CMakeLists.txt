@@ -13,7 +13,6 @@ target_sources(app PRIVATE
   src/pwm.c
   src/adc.c
   src/transmit_data.c
-  src/receive_data.c
 )
 
 target_sources(app PRIVATE
