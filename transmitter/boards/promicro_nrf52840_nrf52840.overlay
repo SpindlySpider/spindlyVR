@@ -9,13 +9,13 @@
 
     coil_1: coil_1 {
       // this pin is used to pulse tx
-      pwms = <&pwm0 0 2000 PWM_POLARITY_NORMAL>;
+      pwms = <&pwm0 0 31250 PWM_POLARITY_NORMAL>;
 
     };
 
     // keep this pin low for transmission
     coil_2: coil_2 {
-      pwms = <&pwm0 1 2000 PWM_POLARITY_NORMAL>;
+      pwms = <&pwm0 1 31250 PWM_POLARITY_NORMAL>;
     };
   };
 
@@ -26,22 +26,34 @@
 
 &adc {
   // docs for this here: https://docs.zephyrproject.org/latest/build/dts/api/bindings/adc/nordic%2Cnrf-saadc.html#std-dtcompatible-nordic-nrf-saadc
-  #address-cells = <1>;
-  #size-cells = <0>;
+  // #address-cells = <1>;
+  // #size-cells = <0>;
   status = "okay";
-  channel@0 {
-    reg = <0>;
-    // * input voltage by x1
-    zephyr,gain = "ADC_GAIN_1_6";
-    // compare with internal +0.6 voltage
-    zephyr,reference = "ADC_REF_INTERNAL";
-    // 10 us
-    zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
-    // pin 0.02
-    zephyr,input-positive = <NRF_SAADC_AIN0>;
-    zephyr,resolution = <12>;
-    // zephyr,vbias-pins - could be useful to add
-  };
+  compatible = "nordic,nrf-saadc";
+  // channel@0 {
+  //   reg = <0>;
+  //   // * input voltage by x1
+  //   zephyr,gain = "ADC_GAIN_1_6";
+  //   // compare with internal +0.6 voltage
+  //   zephyr,reference = "ADC_REF_INTERNAL";
+  //   // 3 us
+  //   zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS,3)>;
+  //   // pin 0.02
+  //   zephyr,input-positive = <NRF_SAADC_AIN0>;
+  //   zephyr,resolution = <12>;
+  //   // zephyr,vbias-pins - could be useful to add
+  // };
+};
+&timer2 {
+    status = "okay";
+};
+
+&hfxo{
+    status = "okay";
+};
+
+&clock{
+    status = "okay";
 };
 
 &i2c0{
