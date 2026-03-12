@@ -1,5 +1,6 @@
 #include "data_handle.h"
 #include <hal/nrf_saadc.h>
+#include <math.h>
 #include <nrfx_saadc.h>
 #include <zephyr/kernel.h>
 
@@ -14,6 +15,7 @@ K_MUTEX_DEFINE(container_mutex);
 #include <nrfx_saadc.h>
 
 K_MUTEX_DEFINE(rx_mutex);
+K_MUTEX_DEFINE(rx_signal_mutex);
 K_MUTEX_DEFINE(tx_mutex);
 K_MUTEX_DEFINE(pos_mutex);
 // store phase and quaternion of TX
@@ -22,6 +24,8 @@ struct data_container_t tx_data_container = {0};
 struct rx_data_container_t rx_data_container = {0};
 // initialize container for orientation
 struct pos_q_t pos_orientation_container = {0};
+// init container for matched filter and dynamic gain
+struct rx_data_signal_t rx_data_signal_container = {.gain = NRF_SAADC_GAIN1_6};
 #endif
 
 struct data_container_t data_container = {0};
@@ -59,6 +63,19 @@ void read_data(struct data_container_t *data_destination) {
   k_mutex_unlock(&container_mutex);
 }
 
+int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c) {
+  // cache values of target sin and cos wave for use during execution
+
+  for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
+    // *1000 because in KHZ
+    float time = (float)i / (CONFIG_TX_ADC_FREQUENCY * 1000.0f);
+    float angle = 2.0f * PI * (CONFIG_TX_PWM_FREQUENCY * 1000.0f) * time;
+    cached_s_c->sine[i] = sin(angle);
+    cached_s_c->cosine[i] = cos(angle);
+  }
+  return 0;
+}
+
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
 
 // --- TX container manipulation
@@ -91,17 +108,33 @@ void read_rx_data(struct rx_data_container_t *data_destination) {
   k_mutex_unlock(&rx_mutex);
 }
 
-void update_rx_adc_data(float x, float y, float z) {
-  k_mutex_lock(&rx_mutex, K_FOREVER);
-  rx_data_container.adc_x = x;
-  rx_data_container.adc_y = y;
-  rx_data_container.adc_z = z;
-  k_mutex_unlock(&rx_mutex);
+void update_rx_adc_data(float amp, float phase, char *axis) {
+  // update amp and phase for specific axis (x,y,z)
+  // TODO: improve this too messy
+  k_mutex_lock(&rx_signal_mutex, K_FOREVER);
+  if (axis == "x") {
+    rx_data_signal_container.adc_x_amp = amp;
+    rx_data_signal_container.adc_x_phase = phase;
+  } else if (axis == "y") {
+    rx_data_signal_container.adc_y_amp = amp;
+    rx_data_signal_container.adc_y_phase = phase;
+  } else {
+    rx_data_signal_container.adc_z_amp = amp;
+    rx_data_signal_container.adc_z_phase = phase;
+  }
+  k_mutex_unlock(&rx_signal_mutex);
+}
+
+void read_rx_adc_data(struct rx_data_signal_t *data_destination) {
+  // stores data in data destination struct;
+  k_mutex_lock(&rx_signal_mutex, K_FOREVER);
+  *data_destination = rx_data_signal_container;
+  k_mutex_unlock(&rx_signal_mutex);
 }
 
 void update_rx_gain_data(nrf_saadc_gain_t gain) {
   k_mutex_lock(&rx_mutex, K_FOREVER);
-  rx_data_container.gain = gain;
+  rx_data_signal_container.gain = gain;
   k_mutex_unlock(&rx_mutex);
 }
 

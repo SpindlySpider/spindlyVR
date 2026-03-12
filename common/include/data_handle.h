@@ -6,6 +6,13 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
+#define PI 3.14159265f
+
+struct cached_sin_cos_t {
+  double sine[CONFIG_TX_SAMPLE_NUMBER];
+  double cosine[CONFIG_TX_SAMPLE_NUMBER];
+};
+
 struct data_container_t {
   // Quaternion orientation
   float q0, q1, q2, q3;
@@ -32,16 +39,26 @@ void update_signal_data(float amp, float phase);
 
 void read_data(struct data_container_t *data_destination);
 
+int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c);
+
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
 struct rx_data_container_t {
-  // data container for rx specific attributes
-  // Received voltage on Rx tri-axis coil
-  float adc_x, adc_y, adc_z;
-  // ADC gain (incase low signal)
-  nrf_saadc_gain_t gain;
+
   // accel & gyro data for dynamic calibration & position conformation
   float accel_x,accel_y,accel_z;
   float gyro_x, gyro_y, gyro_z;
+};
+
+struct rx_data_signal_t {
+  // struct for storing matched filter results 
+  // & dynamic gain
+  // data container for rx specific attributes
+  // Received voltage on Rx tri-axis coil
+  float adc_x_amp, adc_x_phase;
+  float adc_y_amp, adc_y_phase;
+  float adc_z_amp, adc_z_phase;
+  // ADC gain (incase low signal)
+  nrf_saadc_gain_t gain;
 };
 
 struct pos_q_t {
@@ -53,10 +70,11 @@ struct pos_q_t {
 
 void read_tx_data(struct data_container_t *data_destination);
 void update_tx_data(float q0, float q1, float q2, float q3, float phase);
-void update_rx_adc_data(float x, float y, float z);
+void update_rx_adc_data(float amp, float phase, char *axis);
 void update_rx_accel_gyro_data(float accel_x, float accel_y, float accel_z,
                                float gyro_x, float gyro_y, float gyro_z);
 
+void read_rx_adc_data(struct rx_data_signal_t *data_destination);
 void read_pos_q_data(struct pos_q_t *data_destination);
 void update_pos_q_data(float q0, float q1, float q2, float q3, float x, float y,
                        float z);
