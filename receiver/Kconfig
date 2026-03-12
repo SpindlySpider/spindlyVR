@@ -1,0 +1,51 @@
+config DEBUG_SHOW_SENSOR_DATA
+  bool "Show sensor data"
+  default n
+  help
+    If this is enabled, the output will be accelerometer, gyro, and magnetometer data
+
+config DEBUG_SHOW_QUATERNIONS_DATA
+  bool "Show quaternion data"
+  default n
+  help
+    If this is enabled, quaternions will be output.
+
+config RUN_QMC_CALIBRATION
+  bool "Run calibration routine for magnetometer"
+  default n
+  help
+    If this is enabled,  instead of running madgwick filter, it will run the calibration routine for the magnetometer, and output constants for you to update in IMU.c
+
+config RX_UPDATE_RATE
+  int "Update rate of receiver (hz)"
+  default 100
+  help
+    Update rate of receiver can be adjusted, should match TX broadcast rate
+
+config RX_ADC_FREQUENCY
+  int "Frequency of ADC checking receiver coils voltage(KHz)"
+  default 100
+  help
+    Frequency of ADC checking transmitter coil voltage
+
+
+config TX_BROADCAST_FREQUENCY
+  int "Frequency of transmitter broadcasting bluetooth packets (Hz)"
+  default 100
+  help
+    How frequently the transmitter broadcast packets containing quaternion and phase data to receivers
+
+
+config IS_RECEIVER
+  bool "Is this the receiver device?"
+  default y
+  help
+    Used to determine if this is the receiver device, some structs are not included in Tx, check data_handle.h for more details
+
+config RX_SAMPLE_NUMBER
+  int "Number of samples to use for positioning and phase Synchronization"
+  default 100
+  help
+    Number of samples to use when calculating Tx phase and amp.
+
+source "Kconfig.zephyr"

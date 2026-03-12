@@ -1,0 +1,63 @@
+/ {
+  // required for setting ADC
+  zephyr,user {
+    io-channels=<&adc 0>;
+  };
+};
+
+&adc {
+  status = "okay";
+  compatible = "nordic,nrf-saadc";
+};
+
+&timer3{
+  status = "okay";
+}
+
+&i2c0{
+  // https://koen.vervloesem.eu/blog/how-to-change-the-default-i2c-pins-in-zephyr/
+  status = "okay";
+  compatible = "nordic,nrf-twim";
+  pinctrl-0 = <&i2c0_default>;
+  clock-frequency = <I2C_BITRATE_STANDARD>;
+  pinctrl-1 = <&i2c0_sleep>;
+  pinctrl-names = "default","sleep";
+  mpu6500: mpu6500@68 {
+      compatible = "invensense,mpu6050";
+      reg = <0x68>;
+      status = "okay";
+      gyro-fs = <2000>;
+      accel-fs = <2>;
+  };
+  qmc_5883p: qmc_5883p@0 {
+    // use this to set which i2c bus you are using for qmc_5883p
+    reg = <0x0>;
+  };
+};
+
+// set up pins for PWM
+&pinctrl {
+    pwm0_default: pwm0_default {
+        group1 {
+          psels = <NRF_PSEL(PWM_OUT0,1,4)>,
+            <NRF_PSEL(PWM_OUT1,1,6)>;
+            };
+    };
+
+    i2c0_default: i2c0_default{
+      group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 0, 17)>,
+                    <NRF_PSEL(TWIM_SCL, 0, 20)>;
+    };
+      bias-pull-up;
+  };
+
+  i2c0_sleep: i2c0_sleep {
+    group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 0, 17)>,
+                    <NRF_PSEL(TWIM_SCL, 0, 20)>;
+
+        low-power-enable;
+    };
+  };
+};
