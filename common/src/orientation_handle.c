@@ -1,8 +1,8 @@
-#include "data_handle.h"
 #include "orientation_handle.h"
+#include "MadgwickAHRS.h"
+#include "data_handle.h"
 #include "imu.h"
 #include "qmc5883p.h"
-#include "MadgwickAHRS.h"
 
 #include "zephyr/device.h"
 #include "zephyr/sys/util_macro.h"
@@ -85,7 +85,8 @@ void run_orientation_loop(void *, void *, void *) {
   int startup_counter = 0;
   int print_counter = 0;
   bool finished_startup = false;
-  // NOTE: if there are performance issue can move the start up function out of while loop to stop beta reassignment each loop
+  // NOTE: if there are performance issue can move the start up function out of
+  // while loop to stop beta reassignment each loop
 
   while (1) {
     read_sensors();
@@ -111,7 +112,16 @@ void run_orientation_loop(void *, void *, void *) {
     }
 
     // update data container
-    update_orientation_data(q0,q1,q2,q3);
+    update_orientation_data(q0, q1, q2, q3);
+
+    if (IS_ENABLED(CONFIG_IS_RECEIVER)) {
+      update_rx_accel_gyro_data(raw_sensor_data.accel_x,
+                                raw_sensor_data.accel_y,
+                                raw_sensor_data.accel_z, raw_sensor_data.gyro_x,
+                                raw_sensor_data.gyro_y, raw_sensor_data.gyro_z);
+    }
+    // TODO: if receiver update accelermeter & gyro data
+    // for dynamic gyro callibration & accel for ghost position differntation
 
     k_msleep(1000 / CONFIG_TX_BROADCAST_FREQUENCY);
   }
