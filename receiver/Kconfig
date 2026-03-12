@@ -24,7 +24,7 @@ config RX_UPDATE_RATE
 
 config RX_ADC_FREQUENCY
   int "Frequency of ADC checking receiver coils voltage(KHz)"
-  default 100
+  default 200
   help
     Frequency of ADC checking transmitter coil voltage
 
@@ -47,5 +47,25 @@ config RX_SAMPLE_NUMBER
   default 100
   help
     Number of samples to use when calculating Tx phase and amp.
+
+
+config TX_SAMPLE_NUMBER
+  int "Number of samples to use when calculating Tx phase and amp"
+  default 100
+  help
+    Number of samples to use when calculating Tx phase and amp, higher numbers will increase accuracy at cost of performance.
+
+
+config TX_PWM_FREQUENCY
+  int "Frequency of transmitter broadcasting signal (KHz)"
+  default 32
+  help
+    How frequently transmitter antenna sends out signal in KHZ
+
+config TX_ADC_FREQUENCY
+  int "Frequency of ADC checking transmitter coils voltage(KHz)"
+  default 100
+  help
+    Frequency of ADC checking transmitter coil voltage
 
 source "Kconfig.zephyr"

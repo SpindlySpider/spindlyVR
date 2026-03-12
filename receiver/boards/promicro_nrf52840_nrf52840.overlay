@@ -12,7 +12,14 @@
 
 &timer3{
   status = "okay";
-}
+};
+
+&hfxo{
+    status = "okay";
+};
+
+&clock{
+    status = "okay"; };
 
 &i2c0{
   // https://koen.vervloesem.eu/blog/how-to-change-the-default-i2c-pins-in-zephyr/

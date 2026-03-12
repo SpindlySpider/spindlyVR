@@ -5,10 +5,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
-struct cached_sin_cos_t {
-  double sine[CONFIG_RX_SAMPLE_NUMBER];
-  double cosine[CONFIG_RX_SAMPLE_NUMBER];
-};
+
 
 struct sample_buf_t {
   int16_t x[2][CONFIG_RX_SAMPLE_NUMBER];
