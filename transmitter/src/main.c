@@ -44,8 +44,8 @@ int main(void) {
 
   printk("All pins are ready!\n");
 
-  printk("setting up BlueTooth...\n");
-  _err = init_transmit();
+  printk("setting up transmitter...\n");
+  _err = setup_transmitter();
   if (_err != 0) {
     return 0;
   }
