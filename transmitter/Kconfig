@@ -40,4 +40,10 @@ config TX_ADC_FREQUENCY
   help
     Frequency of ADC checking transmitter coil voltage
 
+config IS_RECEIVER
+  bool "Is this the receiver device?"
+  default n
+  help
+    Used to determine if this is the receiver device, some structs are not included in Tx, check data_handle.h for more details
+
 source "Kconfig.zephyr"

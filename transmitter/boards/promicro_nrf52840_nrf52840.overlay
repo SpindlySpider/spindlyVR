@@ -44,7 +44,7 @@
   //   // zephyr,vbias-pins - could be useful to add
   // };
 };
-&timer2 {
+&timer3 {
     status = "okay";
 };
 

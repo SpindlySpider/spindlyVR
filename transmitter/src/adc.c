@@ -26,7 +26,7 @@ K_SEM_DEFINE(adc_semaphore, 0, 1);
 static nrfx_saadc_channel_t channel =
     NRFX_SAADC_DEFAULT_CHANNEL_SE(SAADC_INPUT_PIN, 0);
 // setup timer
-static nrfx_timer_t timer_inst = NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(2));
+static nrfx_timer_t timer_inst = NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(3));
 
 // this variable is a pointer to the full buffer.
 static int16_t *current_buffer_ptr = NULL;
@@ -104,7 +104,7 @@ int config_timer() {
   // incredibly useful:
   // https://github.com/zephyrproject-rtos/hal_nordic/tree/master/nrfx/samples/src/nrfx_timer
 
-  IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_TIMER2), IRQ_PRIO_LOWEST,
+  IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_TIMER3), IRQ_PRIO_LOWEST,
               nrfx_timer_irq_handler, &timer_inst, 0);
 
   uint32_t frequency = NRF_TIMER_BASE_FREQUENCY_GET(timer_inst.p_reg);
@@ -116,7 +116,7 @@ int config_timer() {
   nrfx_timer_clear(&timer_inst);
 
   // convert kilohertz to micro seconds
-  uint32_t khz_to_us = (uint32_t)(1000 / CONFIG_TX_ADC_FREQUENCY) ;
+  uint32_t khz_to_us = (uint32_t)(1000 / CONFIG_TX_ADC_FREQUENCY);
   uint32_t desired_ticks = nrfx_timer_us_to_ticks(&timer_inst, khz_to_us);
 
   nrfx_timer_extended_compare(&timer_inst, NRF_TIMER_CC_CHANNEL0, desired_ticks,
@@ -137,7 +137,7 @@ int config_ppi() {
   // connect timer event compare0 to saadc task sample (take a sample each time
   // timer ticks)
   int err = nrfx_gppi_conn_alloc(
-      nrf_timer_event_address_get(NRF_TIMER2, NRF_TIMER_EVENT_COMPARE0),
+      nrf_timer_event_address_get(NRF_TIMER3, NRF_TIMER_EVENT_COMPARE0),
       nrf_saadc_task_address_get(NRF_SAADC, NRF_SAADC_TASK_SAMPLE),
       &gppi_handle);
 
@@ -167,6 +167,7 @@ int tx_matched_filter(int16_t *signal_buf,
   float amp = 0.0f;
   float phase = 0.0f;
   int32_t dc_sum = 0;
+
   for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
     dc_sum += signal_buf[i];
   }
@@ -178,8 +179,10 @@ int tx_matched_filter(int16_t *signal_buf,
     sin_accumulation += (cached_s_c->sine[i] * ac_wave_signal);
     cos_accumulation += (cached_s_c->cosine[i] * ac_wave_signal);
   }
+
   // int32_t millivolts = (signal_buf[0] * 3600) / 4096;
-  // printk("ADC Reading: %d mV\n",millivolts);
+  // printk("ADC Reading: %d mV\n", millivolts);
+
   amp = ((sqrtf(powf(sin_accumulation, 2) + powf(cos_accumulation, 2)) /
           CONFIG_TX_SAMPLE_NUMBER));
   amp = amp * 2.0f;
@@ -247,7 +250,8 @@ void start_adc_thread(void *, void *, void *) {
   k_msleep(1000);
 
   // TODO: this can be improved, cycles are wasted constantly scanning ADC,
-  // if we set an event in while loop to activate timer to initiate ADC readings that would be better
+  // if we set an event in while loop to activate timer to initiate ADC readings
+  // that would be better
   config_timer();
 
   printk("ADC setup finished, taking samples at %d Hz\n",

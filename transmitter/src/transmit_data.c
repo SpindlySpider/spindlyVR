@@ -9,17 +9,16 @@
 #include <zephyr/sys/util.h>
 #include <zephyr/types.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-
-// TODO: transmit phase and quaternion data
-//
 static struct data_container_t local_data_container;
 
 void esb_tx_event_handler(struct esb_evt const *event) {
-  if (event->evt_id == ESB_EVENT_TX_FAILED) {
-    // clear hardware buffer if transmission fails.
+  switch (event->evt_id) {
+  case ESB_EVENT_TX_FAILED:
+    printk("TX FAILED! Flushing buffer...\n");
     esb_flush_tx();
+    break;
+  default:
+    break;
   }
 }
 
@@ -33,6 +32,7 @@ int config_esb(void) {
   config.mode = ESB_MODE_PTX;
   // assign event handler
   config.event_handler = esb_tx_event_handler;
+  config.selective_auto_ack = true;
 
   err = esb_init(&config);
   if (err)
@@ -67,14 +67,27 @@ void transmit() {
   // broadcasting so ack is not required
   tx_payload.noack = true;
   // copy packet data into payload
-  memcpy(tx_payload.data, my_packet.bytes, sizeof(my_packet));
+  memcpy(&tx_payload.data, &my_packet.bytes, sizeof(my_packet));
   // send data to all listening Rx
-  esb_write_payload(&tx_payload);
-
-  printk("Broadcasting data: %.2f, %.2f, %.2f, %.2f | phase: %.4f amp: %.4f\n",
-         local_data_container.q0, local_data_container.q1,
-         local_data_container.q2, local_data_container.q3,
-         local_data_container.tx_phase, local_data_container.tx_amp);
+  int err;
+  err = esb_write_payload(&tx_payload);
+  switch (err) {
+  case 0:
+    esb_start_tx();
+    printk(
+        "Broadcasting data: %.2f, %.2f, %.2f, %.2f | phase: %.4f amp: %.4f\n",
+        local_data_container.q0, local_data_container.q1,
+        local_data_container.q2, local_data_container.q3,
+        local_data_container.tx_phase, local_data_container.tx_amp);
+    break;
+  case -12:
+    printk("Radio jammed! Error code: %d\n", err);
+    break;
+  default:
+    // another error
+    printk("ESB error: %d", err);
+    break;
+  }
 }
 
 void start_transmit_thread(void *, void *, void *) {
