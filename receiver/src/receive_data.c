@@ -28,10 +28,10 @@ void esb_rx_event_handler(struct esb_evt const *event) {
       // printk("Phase %f arrived at microsecond: %u\n",
              // incoming_data.data.tx_phase, sync_timestamp);
 
-      printk(
-          "Broadcasting data: %.2f, %.2f, %.2f, %.2f | phase: %.4f amp: %.4f\n",
-          incoming_data.data.q0, incoming_data.data.q1, incoming_data.data.q2,
-          incoming_data.data.q3, incoming_data.data.tx_phase);
+      // printk(
+      //     "Broadcasting data: %.2f, %.2f, %.2f, %.2f | phase: %.4f amp: %.4f\n",
+      //     incoming_data.data.q0, incoming_data.data.q1, incoming_data.data.q2,
+      //     incoming_data.data.q3, incoming_data.data.tx_phase);
 
       // TODO: phase sync here
     }

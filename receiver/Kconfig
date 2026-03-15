@@ -24,7 +24,8 @@ config RX_UPDATE_RATE
 
 config RX_ADC_FREQUENCY
   int "Frequency of ADC checking receiver coils voltage(KHz)"
-  default 200
+  # default 100
+  default 150
   help
     Frequency of ADC checking transmitter coil voltage
 
@@ -64,7 +65,8 @@ config TX_PWM_FREQUENCY
 
 config TX_ADC_FREQUENCY
   int "Frequency of ADC checking transmitter coils voltage(KHz)"
-  default 100
+  # default 100
+  default 150
   help
     Frequency of ADC checking transmitter coil voltage
 
