@@ -28,5 +28,6 @@ int setup_pwm() {
   printk("setting pwm to 32 khz\n");
   // setting just one for now to not fry board - direct driving the tx antenna
   pwm_set_dt(&pwms[0], PERIOD, PULSE);
+  pwm_set_dt(&pwms[1], PERIOD, PULSE);
   return 0;
 }

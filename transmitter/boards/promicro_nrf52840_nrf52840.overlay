@@ -15,7 +15,7 @@
 
     // keep this pin low for transmission
     coil_2: coil_2 {
-      pwms = <&pwm0 1 31250 PWM_POLARITY_NORMAL>;
+      pwms = <&pwm0 1 31250 PWM_POLARITY_INVERTED >;
     };
   };
 

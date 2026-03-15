@@ -192,26 +192,6 @@ int tx_matched_filter(int16_t *signal_buf,
 
   // update container
   update_signal_data(amp, phase);
-
-  return 0;
-}
-
-int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c) {
-  // cache values of target sin and cos wave for use during execution
-
-  for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
-    // *1000 because in KHZ
-    float time = (float)i / (CONFIG_TX_ADC_FREQUENCY * 1000.0f);
-    float angle = 2.0f * PI * (CONFIG_TX_PWM_FREQUENCY * 1000.0f) * time;
-    cached_s_c->sine[i] = sin(angle);
-    cached_s_c->cosine[i] = cos(angle);
-  }
-
-  // NOTE: 12 is comming from ADC bit resolution, this should probably be
-  // place in the KCONFIG
-  amp_bias = 3.3 / powf(2, 12);
-
-  // NOTE: need to store how long to sleep
   return 0;
 }
 
@@ -231,6 +211,10 @@ void start_adc_thread(void *, void *, void *) {
     printk("Failed to setup sine and cosine cache: %d\n", err);
     // NOTE: should continue and read to read again
   }
+
+  // NOTE: 12 is comming from ADC bit resolution, this should probably be
+  // place in the KCONFIG
+  amp_bias = 3.3 / powf(2, 12);
 
   printk("setting up saadc\n");
 
