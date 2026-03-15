@@ -44,13 +44,6 @@
 
 // set up pins for PWM
 &pinctrl {
-    pwm0_default: pwm0_default {
-        group1 {
-          psels = <NRF_PSEL(PWM_OUT0,1,4)>,
-            <NRF_PSEL(PWM_OUT1,1,6)>;
-            };
-    };
-
     i2c0_default: i2c0_default{
       group1 {
             psels = <NRF_PSEL(TWIM_SDA, 0, 17)>,
