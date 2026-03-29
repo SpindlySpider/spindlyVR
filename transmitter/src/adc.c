@@ -12,19 +12,16 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
+#include "nrfx_templates_config.h"
+#include <math.h>
+
 #include "adc.h"
 
 #define PI 3.14159265f
-#define SAADC_INPUT_PIN NRFX_ANALOG_EXTERNAL_AIN0 // pin 0.02
-
-#define SAADC_SAMPLE_INTERVAL_US 50
-#define INTERUPT_PRIORITY 6
+#define SAADC_INPUT_PIN NRF_SAADC_INPUT_AIN0 // pin 0.02
 
 K_SEM_DEFINE(adc_semaphore, 0, 1);
 
-// setup ADC pin for use
-static nrfx_saadc_channel_t channel =
-    NRFX_SAADC_DEFAULT_CHANNEL_SE(SAADC_INPUT_PIN, 0);
 // setup timer
 static nrfx_timer_t timer_inst = NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(3));
 
@@ -67,14 +64,20 @@ int config_saadc() {
     printk("Error setting up SAADC: %d\n", err);
     return err;
   }
+  // setup ADC pin for use
+  nrfx_saadc_channel_t default_channel =
+      NRFX_SAADC_DEFAULT_CHANNEL_SE(SAADC_INPUT_PIN, 0);
 
   // setup channel for 3 microsecond
-  channel.channel_config.acq_time = NRF_SAADC_ACQTIME_3US;
-  channel.channel_config.gain = NRF_SAADC_GAIN1_6;
-  channel.channel_config.mode = NRF_SAADC_MODE_SINGLE_ENDED;
-  channel.channel_config.burst = NRF_SAADC_BURST_DISABLED;
+  default_channel.channel_config.acq_time = NRF_SAADC_ACQTIME_3US;
+  // channel.channel_config.gain = NRF_SAADC_GAIN1_6;
+  //
+  // setup channel for 3 microsecond, NO resistors, and 3.3V scaling
+  default_channel.channel_config.acq_time = NRF_SAADC_ACQTIME_3US;
+  default_channel.channel_config.gain = NRF_SAADC_GAIN1_6; // Multiply by 1/4
+  //
 
-  err = nrfx_saadc_channel_config(&channel);
+  err = nrfx_saadc_channel_config(&default_channel);
 
   if (err != 0) {
     printk("Error setting up SAADC channel: %d\n", err);
@@ -95,7 +98,9 @@ int config_saadc() {
   nrfx_saadc_buffer_set(sample_buf[0], CONFIG_TX_SAMPLE_NUMBER);
   nrfx_saadc_buffer_set(sample_buf[1], CONFIG_TX_SAMPLE_NUMBER);
 
-  err = nrfx_saadc_offset_calibrate(saadc_handler);
+  // err = nrfx_saadc_offset_calibrate(saadc_handler);
+  nrf_saadc_channel_input_set(NRF_SAADC, 0, SAADC_INPUT_PIN,
+                              NRF_SAADC_INPUT_DISABLED);
 
   return 0;
 }
@@ -103,28 +108,29 @@ int config_saadc() {
 int config_timer() {
   // incredibly useful:
   // https://github.com/zephyrproject-rtos/hal_nordic/tree/master/nrfx/samples/src/nrfx_timer
-
   IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_TIMER3), IRQ_PRIO_LOWEST,
               nrfx_timer_irq_handler, &timer_inst, 0);
 
-  uint32_t frequency = NRF_TIMER_BASE_FREQUENCY_GET(timer_inst.p_reg);
+  // get frequency from register - returns 0 for 16mhz
+  uint32_t frequency_enum = NRF_TIMER_BASE_FREQUENCY_GET(timer_inst.p_reg);
+  nrfx_timer_config_t config = NRFX_TIMER_DEFAULT_CONFIG(frequency_enum);
 
-  nrfx_timer_config_t config = NRFX_TIMER_DEFAULT_CONFIG(frequency);
-
-  err = nrfx_timer_init(&timer_inst, &config, NULL);
-
+  int err = nrfx_timer_init(&timer_inst, &config, NULL);
+  if (err != 0){
+    printk("error setting up timer: d%",err);
+    return err;
+  }
   nrfx_timer_clear(&timer_inst);
 
-  // convert kilohertz to micro seconds
-  uint32_t khz_to_us = (uint32_t)(1000 / CONFIG_TX_ADC_FREQUENCY);
-  uint32_t desired_ticks = nrfx_timer_us_to_ticks(&timer_inst, khz_to_us);
+  // need 100 ticks to get 160khz (default ADC value) e.g. 16,000,000 / 160,000 = 100
+  uint32_t desired_ticks = 16000 / CONFIG_TX_ADC_FREQUENCY;
 
   nrfx_timer_extended_compare(&timer_inst, NRF_TIMER_CC_CHANNEL0, desired_ticks,
-                              NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
+                              NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, false);
 
   nrfx_timer_enable(&timer_inst);
-  printk("Started timer\n");
-  k_msleep(100);
+  printk("Started timer ticking every %d ticks\n", desired_ticks);
+  k_msleep(1000);
 
   return 0;
 }
@@ -238,6 +244,7 @@ void start_adc_thread(void *, void *, void *) {
   // that would be better
   config_timer();
 
+  // nrf_saadc_task_trigger(NRF_SAADC, NRF_SAADC_TASK_START);
   printk("ADC setup finished, taking samples at %d Hz\n",
          CONFIG_TX_BROADCAST_FREQUENCY);
   while (1) {
