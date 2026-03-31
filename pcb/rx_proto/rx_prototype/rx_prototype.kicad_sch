@@ -5883,7 +5883,7 @@
 		)
 		(uuid "15282d7f-34c0-45d9-98e6-f9c664f243a9")
 	)
-	(label "V_OUT1"
+	(label "V_OUT3"
 		(at 165.1 17.78 180)
 		(effects
 			(font
@@ -6026,7 +6026,7 @@
 			)
 		)
 	)
-	(label "V_OUT2"
+	(label "V_OUT1"
 		(at 251.46 73.66 0)
 		(effects
 			(font
@@ -6046,7 +6046,7 @@
 		)
 		(uuid "7c396889-6b20-48ee-bdf7-0bdde8b0546c")
 	)
-	(label "V_OUT1"
+	(label "V_OUT2"
 		(at 251.46 71.12 0)
 		(effects
 			(font
@@ -6056,7 +6056,7 @@
 		)
 		(uuid "8b20ef7c-5f08-4ce7-ac02-9b46a037a7b7")
 	)
-	(label "V_OUT2"
+	(label "V_OUT4"
 		(at 200.66 19.05 0)
 		(effects
 			(font
@@ -6066,7 +6066,7 @@
 		)
 		(uuid "8fe0c8f9-96b0-4971-a091-15018090bc41")
 	)
-	(label "V_OUT4"
+	(label "V_OUT3"
 		(at 251.46 78.74 0)
 		(effects
 			(font
@@ -6106,7 +6106,7 @@
 		)
 		(uuid "c1ebbb0e-639a-425d-b651-03e7ad73c492")
 	)
-	(label "V_OUT3"
+	(label "V_OUT4"
 		(at 251.46 76.2 0)
 		(effects
 			(font
@@ -6116,7 +6116,7 @@
 		)
 		(uuid "cd00a1c7-771c-4e04-b2e9-cdab505ba563")
 	)
-	(label "V_OUT4"
+	(label "V_OUT2"
 		(at 191.77 59.69 0)
 		(effects
 			(font
@@ -6136,7 +6136,7 @@
 		)
 		(uuid "d465f4de-d8e2-4eb4-8c68-14bf6734a02a")
 	)
-	(label "V_OUT3"
+	(label "V_OUT1"
 		(at 156.21 58.42 0)
 		(effects
 			(font
