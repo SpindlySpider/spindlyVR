@@ -3170,12 +3170,6 @@
 		(uuid "32ba8ced-41f3-4d0f-8fb2-6ce8a50ef66e")
 	)
 	(junction
-		(at 74.93 161.29)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "33e13cd2-8203-421a-bdaa-8afe5b370e38")
-	)
-	(junction
 		(at 114.3 30.48)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3218,10 +3212,10 @@
 		(uuid "48b7e0d9-0cd1-45c9-82a8-09576c926733")
 	)
 	(junction
-		(at 43.18 158.75)
+		(at 74.93 160.02)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "4a2d0811-7b01-412a-93e3-73db5fde3432")
+		(uuid "4fb072a1-b094-4cea-84d2-6eec2e5ac9d3")
 	)
 	(junction
 		(at 147.32 107.95)
@@ -3314,16 +3308,16 @@
 		(uuid "8f8099dc-59df-49e0-ac03-1bdcd03c9424")
 	)
 	(junction
+		(at 43.18 157.48)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "9657bea3-879e-40ae-bce2-055238a31772")
+	)
+	(junction
 		(at 106.68 113.03)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "9b28afea-7a33-4a26-afa8-17518ef7eab1")
-	)
-	(junction
-		(at 276.86 116.84)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "9cb019ef-74c5-4dfe-bc92-05bf43e1a309")
 	)
 	(junction
 		(at 165.1 25.4)
@@ -3390,6 +3384,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "ccf7e130-b09e-40ba-87b5-a67510485c26")
+	)
+	(junction
+		(at 276.86 114.3)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "ce7b7260-58cb-41c9-82cc-afdd3c68c2fd")
 	)
 	(junction
 		(at 187.96 27.94)
@@ -3495,6 +3495,16 @@
 	)
 	(wire
 		(pts
+			(xy 43.18 157.48) (xy 43.18 161.29)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "012e3cad-aff4-4fc1-b541-cb6d362a23d3")
+	)
+	(wire
+		(pts
 			(xy 154.94 116.84) (xy 154.94 113.03)
 		)
 		(stroke
@@ -3595,7 +3605,7 @@
 	)
 	(wire
 		(pts
-			(xy 261.62 123.19) (xy 276.86 123.19)
+			(xy 261.62 120.65) (xy 276.86 120.65)
 		)
 		(stroke
 			(width 0)
@@ -3625,7 +3635,7 @@
 	)
 	(wire
 		(pts
-			(xy 276.86 116.84) (xy 280.67 116.84)
+			(xy 276.86 114.3) (xy 280.67 114.3)
 		)
 		(stroke
 			(width 0)
@@ -3755,7 +3765,7 @@
 	)
 	(wire
 		(pts
-			(xy 59.69 163.83) (xy 59.69 172.72)
+			(xy 59.69 162.56) (xy 59.69 171.45)
 		)
 		(stroke
 			(width 0)
@@ -4035,7 +4045,7 @@
 	)
 	(wire
 		(pts
-			(xy 43.18 158.75) (xy 59.69 158.75)
+			(xy 43.18 157.48) (xy 59.69 157.48)
 		)
 		(stroke
 			(width 0)
@@ -4055,7 +4065,7 @@
 	)
 	(wire
 		(pts
-			(xy 74.93 161.29) (xy 81.28 161.29)
+			(xy 74.93 160.02) (xy 81.28 160.02)
 		)
 		(stroke
 			(width 0)
@@ -4175,17 +4185,7 @@
 	)
 	(wire
 		(pts
-			(xy 43.18 158.75) (xy 43.18 161.29)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4713480a-34cf-43c2-8a04-de1d4a000b14")
-	)
-	(wire
-		(pts
-			(xy 276.86 116.84) (xy 276.86 123.19)
+			(xy 276.86 114.3) (xy 276.86 120.65)
 		)
 		(stroke
 			(width 0)
@@ -4252,16 +4252,6 @@
 			(type default)
 		)
 		(uuid "4ea409ee-833b-44bc-b059-125e55d23c6e")
-	)
-	(wire
-		(pts
-			(xy 43.18 153.67) (xy 43.18 158.75)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4f1d25c1-7fc8-4451-ac77-549c14a06332")
 	)
 	(wire
 		(pts
@@ -4775,13 +4765,23 @@
 	)
 	(wire
 		(pts
-			(xy 74.93 172.72) (xy 59.69 172.72)
+			(xy 74.93 171.45) (xy 59.69 171.45)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "90c5fe61-b681-40cc-b2b1-629381ca57dc")
+	)
+	(wire
+		(pts
+			(xy 43.18 153.67) (xy 43.18 157.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "914083a7-9682-4fe2-ac69-4cc8ef268624")
 	)
 	(wire
 		(pts
@@ -4815,7 +4815,7 @@
 	)
 	(wire
 		(pts
-			(xy 256.54 107.95) (xy 256.54 114.3)
+			(xy 256.54 107.95) (xy 256.54 111.76)
 		)
 		(stroke
 			(width 0)
@@ -4875,7 +4875,7 @@
 	)
 	(wire
 		(pts
-			(xy 256.54 114.3) (xy 261.62 114.3)
+			(xy 256.54 111.76) (xy 261.62 111.76)
 		)
 		(stroke
 			(width 0)
@@ -5015,7 +5015,7 @@
 	)
 	(wire
 		(pts
-			(xy 261.62 119.38) (xy 261.62 123.19)
+			(xy 261.62 116.84) (xy 261.62 120.65)
 		)
 		(stroke
 			(width 0)
@@ -5185,7 +5185,7 @@
 	)
 	(wire
 		(pts
-			(xy 74.93 161.29) (xy 74.93 172.72)
+			(xy 74.93 160.02) (xy 74.93 171.45)
 		)
 		(stroke
 			(width 0)
@@ -5974,7 +5974,7 @@
 		(uuid "5185172f-d17b-4661-9aa7-d90ec7330565")
 	)
 	(label "ADC_0"
-		(at 280.67 116.84 0)
+		(at 280.67 114.3 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6004,7 +6004,7 @@
 		(uuid "746edfa5-bdbe-4784-80d3-f3d0b9b5bdec")
 	)
 	(label "V_BIAS"
-		(at 81.28 161.29 0)
+		(at 81.28 160.02 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6014,7 +6014,7 @@
 		)
 		(uuid "771457d1-20a9-499e-8ebb-3e81b55f9697")
 		(property "voltage" "1.6"
-			(at 81.28 162.56 0)
+			(at 81.28 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6629,7 +6629,7 @@
 	)
 	(symbol
 		(lib_id "Amplifier_Operational:MCP6004")
-		(at 67.31 161.29 0)
+		(at 269.24 114.3 0)
 		(unit 4)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6640,7 +6640,7 @@
 		(fields_autoplaced yes)
 		(uuid "1478bca1-8a68-41ad-9a3a-405dbe784d30")
 		(property "Reference" "U5"
-			(at 67.31 151.13 0)
+			(at 269.24 104.14 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6650,7 +6650,7 @@
 			)
 		)
 		(property "Value" "MCP6004"
-			(at 67.31 153.67 0)
+			(at 269.24 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6660,7 +6660,7 @@
 			)
 		)
 		(property "Footprint" "Library:MCP6004"
-			(at 66.04 158.75 0)
+			(at 267.97 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6671,7 +6671,7 @@
 			)
 		)
 		(property "Datasheet" "http://ww1.microchip.com/downloads/en/DeviceDoc/21733j.pdf"
-			(at 68.58 156.21 0)
+			(at 270.51 109.22 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6682,7 +6682,7 @@
 			)
 		)
 		(property "Description" "1MHz, Low-Power Op Amp, DIP-14/SOIC-14/TSSOP-14"
-			(at 67.31 161.29 0)
+			(at 269.24 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9031,7 +9031,7 @@
 	)
 	(symbol
 		(lib_id "Amplifier_Operational:MCP6004")
-		(at 269.24 116.84 0)
+		(at 67.31 160.02 0)
 		(unit 3)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9042,7 +9042,7 @@
 		(fields_autoplaced yes)
 		(uuid "680005b6-848a-4d32-859e-17ca60d0ee74")
 		(property "Reference" "U5"
-			(at 269.24 106.68 0)
+			(at 67.31 149.86 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9052,7 +9052,7 @@
 			)
 		)
 		(property "Value" "MCP6004"
-			(at 269.24 109.22 0)
+			(at 67.31 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9062,7 +9062,7 @@
 			)
 		)
 		(property "Footprint" "Library:MCP6004"
-			(at 267.97 114.3 0)
+			(at 66.04 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9073,7 +9073,7 @@
 			)
 		)
 		(property "Datasheet" "http://ww1.microchip.com/downloads/en/DeviceDoc/21733j.pdf"
-			(at 270.51 111.76 0)
+			(at 68.58 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9084,7 +9084,7 @@
 			)
 		)
 		(property "Description" "1MHz, Low-Power Op Amp, DIP-14/SOIC-14/TSSOP-14"
-			(at 269.24 116.84 0)
+			(at 67.31 160.02 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
