@@ -3065,6 +3065,16 @@
 		)
 		(uuid "3d6ce59c-1033-47e9-892b-02dd2ffa7f9f")
 	)
+	(text "Additionally C4 should be 0.47uF,\nchanged for this specific prototype because \nI dont have capcitors"
+		(exclude_from_sim no)
+		(at 189.992 48.768 0)
+		(effects
+			(font
+				(size 0.635 0.635)
+			)
+		)
+		(uuid "7d4630f6-8459-432e-8533-9011ff56a82b")
+	)
 	(text "R3 should be 51, check research paper"
 		(exclude_from_sim no)
 		(at 145.034 46.99 0)
@@ -3100,22 +3110,10 @@
 		(uuid "105dc743-3e82-4531-ab0c-89eddb1ba271")
 	)
 	(junction
-		(at 140.97 62.23)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "13cd1118-444b-4fd4-813d-c4ae9f2ba15a")
-	)
-	(junction
 		(at 238.76 46.99)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "1729c808-f53f-4058-9f15-9e77c8b6fe4c")
-	)
-	(junction
-		(at 170.18 30.48)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "1c312306-454f-4b79-8beb-6584cde52be0")
 	)
 	(junction
 		(at 119.38 64.77)
@@ -3128,6 +3126,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "28de24ef-7afe-4adf-8f02-1e74464e914e")
+	)
+	(junction
+		(at 140.97 62.23)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "2bbcb90a-199a-42c1-b6a1-734655009ce2")
 	)
 	(junction
 		(at 168.91 64.77)
@@ -3158,6 +3162,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "32ba8ced-41f3-4d0f-8fb2-6ce8a50ef66e")
+	)
+	(junction
+		(at 130.81 143.51)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "33e13cd2-8203-421a-bdaa-8afe5b370e38")
 	)
 	(junction
 		(at 114.3 30.48)
@@ -3202,6 +3212,12 @@
 		(uuid "48b7e0d9-0cd1-45c9-82a8-09576c926733")
 	)
 	(junction
+		(at 99.06 140.97)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "4a2d0811-7b01-412a-93e3-73db5fde3432")
+	)
+	(junction
 		(at 113.03 105.41)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3214,28 +3230,10 @@
 		(uuid "54ea1508-090e-4855-af4d-9ecbf735ea23")
 	)
 	(junction
-		(at 187.96 27.94)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "5e7f184b-431b-4b9c-a1d8-0d9bab3cf019")
-	)
-	(junction
-		(at 276.86 116.84)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "5eab70a1-f7b0-4057-903d-bb42bc7d6476")
-	)
-	(junction
 		(at 163.83 121.92)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "6141cde1-cb31-4e4a-82d3-571d9f3e0751")
-	)
-	(junction
-		(at 165.1 25.4)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "61bd85df-7c0d-48c3-a058-e7e5adb8bccf")
 	)
 	(junction
 		(at 254 26.67)
@@ -3328,6 +3326,18 @@
 		(uuid "9b28afea-7a33-4a26-afa8-17518ef7eab1")
 	)
 	(junction
+		(at 276.86 116.84)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "9cb019ef-74c5-4dfe-bc92-05bf43e1a309")
+	)
+	(junction
+		(at 165.1 25.4)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "9f52c6fc-032f-46aa-a1b7-8fffb6150ff8")
+	)
+	(junction
 		(at 168.91 74.93)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3338,6 +3348,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "9fe7dcfe-0566-4af3-ab9f-cc40f900bf5b")
+	)
+	(junction
+		(at 157.48 59.69)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "a08a7421-165e-4c5b-aee5-30f01b248248")
 	)
 	(junction
 		(at 186.69 74.93)
@@ -3358,12 +3374,6 @@
 		(uuid "a3bd8ace-0e0a-4290-a198-2f0e48adc180")
 	)
 	(junction
-		(at 157.48 59.69)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "a59809ac-f341-4b38-b03c-5d225afab8ee")
-	)
-	(junction
 		(at 199.39 69.85)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3382,22 +3392,28 @@
 		(uuid "b9015102-179f-4f9b-a07c-5378f2283272")
 	)
 	(junction
+		(at 172.72 30.48)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "ca144d09-e767-488a-acf4-5fed5bc21374")
+	)
+	(junction
 		(at 170.18 38.1)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "ccf7e130-b09e-40ba-87b5-a67510485c26")
 	)
 	(junction
+		(at 187.96 27.94)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d0dc9cec-7b47-47da-abb7-a965ee352c49")
+	)
+	(junction
 		(at 165.1 59.69)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "df82544e-fd38-4662-bb4c-d914675dab0f")
-	)
-	(junction
-		(at 99.06 140.97)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "e4ce744d-9871-4ff4-a09c-71506def3a69")
 	)
 	(junction
 		(at 99.06 143.51)
@@ -3436,10 +3452,10 @@
 		(uuid "ef43285a-2dc7-4f71-a947-3b0f64066eaa")
 	)
 	(junction
-		(at 130.81 143.51)
+		(at 170.18 30.48)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "f682f38a-82e7-4abb-a089-5d6ae6790ab5")
+		(uuid "f64b1a97-6a96-487e-9bf3-312370d6885c")
 	)
 	(junction
 		(at 116.84 72.39)
@@ -3585,6 +3601,16 @@
 	)
 	(wire
 		(pts
+			(xy 261.62 123.19) (xy 276.86 123.19)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0c0fa68d-3047-4ba2-b1a1-5f51962ca6ee")
+	)
+	(wire
+		(pts
 			(xy 163.83 107.95) (xy 163.83 104.14)
 		)
 		(stroke
@@ -3665,6 +3691,16 @@
 	)
 	(wire
 		(pts
+			(xy 247.65 71.12) (xy 251.46 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "14b97bdd-f903-4f36-8980-7db509eb82ea")
+	)
+	(wire
+		(pts
 			(xy 113.03 119.38) (xy 113.03 113.03)
 		)
 		(stroke
@@ -3705,6 +3741,16 @@
 	)
 	(wire
 		(pts
+			(xy 115.57 146.05) (xy 115.57 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1e34c52a-02c2-4f4e-804e-10961cbee1e7")
+	)
+	(wire
+		(pts
 			(xy 251.46 83.82) (xy 247.65 83.82)
 		)
 		(stroke
@@ -3725,6 +3771,16 @@
 	)
 	(wire
 		(pts
+			(xy 140.97 62.23) (xy 142.24 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "218123d6-705b-49f5-a0b0-7ec0c8978375")
+	)
+	(wire
+		(pts
 			(xy 201.93 71.12) (xy 201.93 69.85)
 		)
 		(stroke
@@ -3742,6 +3798,16 @@
 			(type default)
 		)
 		(uuid "25a28c64-5d73-4ff6-a006-6eca3c3c711e")
+	)
+	(wire
+		(pts
+			(xy 67.31 78.74) (xy 60.96 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2619d4bc-2168-412d-8251-6c5b25e1283b")
 	)
 	(wire
 		(pts
@@ -3795,16 +3861,6 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 78.74) (xy 60.96 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2a35af6f-061e-4941-90b5-5a01fd1b6b67")
-	)
-	(wire
-		(pts
 			(xy 158.75 25.4) (xy 165.1 25.4)
 		)
 		(stroke
@@ -3822,6 +3878,16 @@
 			(type default)
 		)
 		(uuid "2c1364d9-48b8-429e-bc96-67cfc5817251")
+	)
+	(wire
+		(pts
+			(xy 67.31 81.28) (xy 60.96 81.28)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2df3f5d6-464b-403f-949a-92a2c07b97b0")
 	)
 	(wire
 		(pts
@@ -3885,6 +3951,16 @@
 	)
 	(wire
 		(pts
+			(xy 165.1 25.4) (xy 172.72 25.4)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "30bb191e-786a-4e50-8118-79701e80041f")
+	)
+	(wire
+		(pts
 			(xy 167.64 114.3) (xy 172.72 114.3)
 		)
 		(stroke
@@ -3925,16 +4001,6 @@
 	)
 	(wire
 		(pts
-			(xy 251.46 73.66) (xy 247.65 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "35bf7b48-4429-49c6-9cc6-ce624b8f8663")
-	)
-	(wire
-		(pts
 			(xy 133.35 62.23) (xy 133.35 64.77)
 		)
 		(stroke
@@ -3965,23 +4031,13 @@
 	)
 	(wire
 		(pts
-			(xy 187.96 27.94) (xy 186.69 27.94)
+			(xy 99.06 140.97) (xy 115.57 140.97)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "3da3135f-d205-454f-81fc-12ec52893293")
-	)
-	(wire
-		(pts
-			(xy 116.84 57.15) (xy 142.24 57.15)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3e5f2b1f-a8c0-4c31-89c6-159ca0c21519")
+		(uuid "3d3faaa4-0b2b-41bf-ac2e-d964cc41b08f")
 	)
 	(wire
 		(pts
@@ -3992,16 +4048,6 @@
 			(type default)
 		)
 		(uuid "3e9ce42e-6b4d-4db0-90d4-09b271b85d17")
-	)
-	(wire
-		(pts
-			(xy 170.18 30.48) (xy 171.45 30.48)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3ed244a8-9dff-435b-90a0-f1f99601ddcc")
 	)
 	(wire
 		(pts
@@ -4125,6 +4171,16 @@
 	)
 	(wire
 		(pts
+			(xy 99.06 140.97) (xy 99.06 143.51)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4713480a-34cf-43c2-8a04-de1d4a000b14")
+	)
+	(wire
+		(pts
 			(xy 276.86 116.84) (xy 276.86 123.19)
 		)
 		(stroke
@@ -4132,16 +4188,6 @@
 			(type default)
 		)
 		(uuid "474b01f0-cfe3-4218-b09e-0bf8552b449a")
-	)
-	(wire
-		(pts
-			(xy 259.08 123.19) (xy 259.08 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "47c48f33-2118-4072-a5b4-617ec6d6f44c")
 	)
 	(wire
 		(pts
@@ -4425,16 +4471,6 @@
 	)
 	(wire
 		(pts
-			(xy 259.08 114.3) (xy 256.54 114.3)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6bd4b479-cbe0-4fd8-90a1-fab2ac3b1261")
-	)
-	(wire
-		(pts
 			(xy 200.66 107.95) (xy 200.66 105.41)
 		)
 		(stroke
@@ -4452,16 +4488,6 @@
 			(type default)
 		)
 		(uuid "6d15b1f6-f9e4-49d3-913e-0c839588de4c")
-	)
-	(wire
-		(pts
-			(xy 99.06 140.97) (xy 115.57 140.97)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6d3eb696-1d3f-4e6b-9264-9287e60d787f")
 	)
 	(wire
 		(pts
@@ -4605,16 +4631,6 @@
 	)
 	(wire
 		(pts
-			(xy 115.57 154.94) (xy 115.57 146.05)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7e37de4d-6b9f-4304-a2cf-2f8d9ea00c92")
-	)
-	(wire
-		(pts
 			(xy 275.59 153.67) (xy 275.59 158.75)
 		)
 		(stroke
@@ -4655,6 +4671,16 @@
 	)
 	(wire
 		(pts
+			(xy 247.65 73.66) (xy 251.46 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "889819b6-71fb-4869-ad10-6f82fed2b493")
+	)
+	(wire
+		(pts
 			(xy 133.35 62.23) (xy 140.97 62.23)
 		)
 		(stroke
@@ -4682,16 +4708,6 @@
 			(type default)
 		)
 		(uuid "89b9bd2f-475b-4a3d-96dc-9be8fcf2f228")
-	)
-	(wire
-		(pts
-			(xy 274.32 116.84) (xy 276.86 116.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8b397e42-5d3f-4794-92c8-97313be06639")
 	)
 	(wire
 		(pts
@@ -4855,13 +4871,13 @@
 	)
 	(wire
 		(pts
-			(xy 251.46 71.12) (xy 247.65 71.12)
+			(xy 256.54 114.3) (xy 261.62 114.3)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "9df6c786-aeb8-49a3-921a-75c9de46caea")
+		(uuid "9df0c05c-9c47-4805-b9a1-d68de4929f72")
 	)
 	(wire
 		(pts
@@ -4945,16 +4961,6 @@
 	)
 	(wire
 		(pts
-			(xy 165.1 25.4) (xy 171.45 25.4)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a5e8af19-4778-4d12-b31a-9f59a8eddee5")
-	)
-	(wire
-		(pts
 			(xy 170.18 38.1) (xy 175.26 38.1)
 		)
 		(stroke
@@ -4972,16 +4978,6 @@
 			(type default)
 		)
 		(uuid "a73c0b7e-fc80-436d-9908-e9086d58afda")
-	)
-	(wire
-		(pts
-			(xy 140.97 62.23) (xy 142.24 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a837e0a7-66c5-4dbc-a451-8cc26eeed976")
 	)
 	(wire
 		(pts
@@ -5012,6 +5008,16 @@
 			(type default)
 		)
 		(uuid "ac4506cf-908c-4dfa-bc5c-e5cdfcc36c26")
+	)
+	(wire
+		(pts
+			(xy 261.62 119.38) (xy 261.62 123.19)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ac86f570-8afe-43e3-b3a9-1d58d2fa39d6")
 	)
 	(wire
 		(pts
@@ -5195,6 +5201,16 @@
 	)
 	(wire
 		(pts
+			(xy 172.72 30.48) (xy 173.99 30.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c8089a1c-b3f8-4456-ba8d-a9de03044d9d")
+	)
+	(wire
+		(pts
 			(xy 119.38 64.77) (xy 116.84 64.77)
 		)
 		(stroke
@@ -5202,26 +5218,6 @@
 			(type default)
 		)
 		(uuid "c957a59e-5d35-4f05-abbd-a6278fb3b421")
-	)
-	(wire
-		(pts
-			(xy 276.86 123.19) (xy 259.08 123.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cb9e1fd3-326e-4b5e-a343-9aa751a19206")
-	)
-	(wire
-		(pts
-			(xy 71.12 76.2) (xy 60.96 76.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cc5b3d79-034a-4bc6-a123-6f3b92d84627")
 	)
 	(wire
 		(pts
@@ -5312,6 +5308,16 @@
 			(type default)
 		)
 		(uuid "d41b82a3-17fe-4da3-af0c-d35007eb5f2a")
+	)
+	(wire
+		(pts
+			(xy 170.18 30.48) (xy 172.72 30.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d4d41ab3-b99f-4eba-9a2b-18c05e964dd3")
 	)
 	(wire
 		(pts
@@ -5655,16 +5661,6 @@
 	)
 	(wire
 		(pts
-			(xy 99.06 140.97) (xy 99.06 143.51)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ee84b3a7-af92-4091-b7c2-f193fcef44aa")
-	)
-	(wire
-		(pts
 			(xy 140.97 62.23) (xy 140.97 71.12)
 		)
 		(stroke
@@ -5695,7 +5691,7 @@
 	)
 	(wire
 		(pts
-			(xy 24.13 63.5) (xy 19.05 63.5)
+			(xy 19.05 63.5) (xy 25.4 63.5)
 		)
 		(stroke
 			(width 0)
@@ -5712,6 +5708,16 @@
 			(type default)
 		)
 		(uuid "f2cee7fc-3e46-49b9-8bc6-5397bb13ad3f")
+	)
+	(wire
+		(pts
+			(xy 67.31 76.2) (xy 60.96 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f30b9907-2be1-4541-9299-5c2692d9d599")
 	)
 	(wire
 		(pts
@@ -5845,13 +5851,13 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 81.28) (xy 60.96 81.28)
+			(xy 116.84 57.15) (xy 142.24 57.15)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "ffd36453-cc70-4f64-920b-18782fbf1e38")
+		(uuid "fdde95c9-6c06-4fd5-845f-55ea3ac90b78")
 	)
 	(label "V_BIAS"
 		(at 110.49 119.38 180)
@@ -5914,7 +5920,7 @@
 		(uuid "1dc24801-4f19-4500-8749-bf76c1060c67")
 	)
 	(label "SELECT_2"
-		(at 71.12 76.2 0)
+		(at 67.31 81.28 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6037,7 +6043,7 @@
 		)
 	)
 	(label "V_OUT1"
-		(at 251.46 71.12 0)
+		(at 251.46 73.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6057,7 +6063,7 @@
 		(uuid "7c396889-6b20-48ee-bdf7-0bdde8b0546c")
 	)
 	(label "V_OUT2"
-		(at 251.46 73.66 0)
+		(at 251.46 71.12 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6137,7 +6143,7 @@
 		(uuid "cfd6877d-717e-41e1-ae19-9086bb000d0f")
 	)
 	(label "SELECT_0"
-		(at 71.12 81.28 0)
+		(at 67.31 76.2 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6177,7 +6183,7 @@
 		(uuid "ec302f9c-453b-4064-b303-7801256617fc")
 	)
 	(label "SELECT_1"
-		(at 71.12 78.74 0)
+		(at 67.31 78.74 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6247,7 +6253,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 164.846 112.014 90)
 			(hide yes)
 			(show_name no)
@@ -6443,7 +6449,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 123.19 109.22 0)
 			(hide yes)
 			(show_name no)
@@ -6523,7 +6529,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Library:MPU-6500"
 			(at 234.95 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -6639,7 +6645,7 @@
 	)
 	(symbol
 		(lib_id "Amplifier_Operational:MCP6004")
-		(at 266.7 116.84 0)
+		(at 123.19 143.51 0)
 		(unit 4)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6650,7 +6656,7 @@
 		(fields_autoplaced yes)
 		(uuid "1478bca1-8a68-41ad-9a3a-405dbe784d30")
 		(property "Reference" "U5"
-			(at 266.7 106.68 0)
+			(at 123.19 133.35 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6660,7 +6666,7 @@
 			)
 		)
 		(property "Value" "MCP6004"
-			(at 266.7 109.22 0)
+			(at 123.19 135.89 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6670,7 +6676,7 @@
 			)
 		)
 		(property "Footprint" "Library:MCP6004"
-			(at 265.43 114.3 0)
+			(at 121.92 140.97 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6681,7 +6687,7 @@
 			)
 		)
 		(property "Datasheet" "http://ww1.microchip.com/downloads/en/DeviceDoc/21733j.pdf"
-			(at 267.97 111.76 0)
+			(at 124.46 138.43 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6692,7 +6698,7 @@
 			)
 		)
 		(property "Description" "1MHz, Low-Power Op Amp, DIP-14/SOIC-14/TSSOP-14"
-			(at 266.7 116.84 0)
+			(at 123.19 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6784,7 +6790,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 191.77 27.94 0)
 			(hide yes)
 			(show_name no)
@@ -6941,7 +6947,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 177.546 75.946 90)
 			(hide yes)
 			(show_name no)
@@ -7020,7 +7026,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 149.606 110.236 90)
 			(hide yes)
 			(show_name no)
@@ -7101,7 +7107,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 133.35 41.91 0)
 			(hide yes)
 			(show_name no)
@@ -7180,7 +7186,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 107.95 147.32 0)
 			(hide yes)
 			(show_name no)
@@ -7261,9 +7267,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
-			(at 134.366 68.834 90)
-			(hide yes)
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+			(at 126.492 84.582 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7499,7 +7504,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 100.076 132.334 90)
 			(hide yes)
 			(show_name no)
@@ -7656,7 +7661,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 149.86 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -7737,7 +7742,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 115.57 109.22 0)
 			(hide yes)
 			(show_name no)
@@ -7816,7 +7821,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 189.23 101.6 0)
 			(hide yes)
 			(show_name no)
@@ -7895,7 +7900,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 166.116 72.644 90)
 			(hide yes)
 			(show_name no)
@@ -7976,7 +7981,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 133.35 116.84 0)
 			(hide yes)
 			(show_name no)
@@ -8055,7 +8060,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 197.866 37.084 90)
 			(hide yes)
 			(show_name no)
@@ -8191,7 +8196,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "46970397-0e0d-47da-a8cf-b816d103908e")
 		(property "Reference" "U1"
 			(at 43.18 43.18 0)
@@ -8214,7 +8218,7 @@
 			)
 		)
 		(property "Footprint" "nice nano:nice_nano"
-			(at 69.85 130.81 90)
+			(at 57.404 91.186 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8366,7 +8370,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 190.5 62.23 0)
 			(hide yes)
 			(show_name no)
@@ -8435,7 +8439,7 @@
 				)
 			)
 		)
-		(property "Value" "0.47uF"
+		(property "Value" "0.1uF"
 			(at 161.29 80.518 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8445,7 +8449,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 165.1 78.74 0)
 			(hide yes)
 			(show_name no)
@@ -8640,7 +8644,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 176.53 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -8927,7 +8931,7 @@
 	)
 	(symbol
 		(lib_id "Amplifier_Operational:MCP6004")
-		(at 179.07 27.94 0)
+		(at 149.86 59.69 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8938,7 +8942,7 @@
 		(fields_autoplaced yes)
 		(uuid "65cfbe0b-9f78-4e88-b31c-c20cf48bf1c3")
 		(property "Reference" "U5"
-			(at 179.07 17.78 0)
+			(at 149.86 49.53 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8948,7 +8952,7 @@
 			)
 		)
 		(property "Value" "MCP6004"
-			(at 179.07 20.32 0)
+			(at 149.86 52.07 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8958,7 +8962,7 @@
 			)
 		)
 		(property "Footprint" "Library:MCP6004"
-			(at 177.8 25.4 0)
+			(at 148.59 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8969,7 +8973,7 @@
 			)
 		)
 		(property "Datasheet" "http://ww1.microchip.com/downloads/en/DeviceDoc/21733j.pdf"
-			(at 180.34 22.86 0)
+			(at 151.13 54.61 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8980,7 +8984,7 @@
 			)
 		)
 		(property "Description" "1MHz, Low-Power Op Amp, DIP-14/SOIC-14/TSSOP-14"
-			(at 179.07 27.94 0)
+			(at 149.86 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9043,7 +9047,7 @@
 	)
 	(symbol
 		(lib_id "Amplifier_Operational:MCP6004")
-		(at 123.19 143.51 0)
+		(at 269.24 116.84 0)
 		(unit 3)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9054,7 +9058,7 @@
 		(fields_autoplaced yes)
 		(uuid "680005b6-848a-4d32-859e-17ca60d0ee74")
 		(property "Reference" "U5"
-			(at 123.19 133.35 0)
+			(at 269.24 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9064,7 +9068,7 @@
 			)
 		)
 		(property "Value" "MCP6004"
-			(at 123.19 135.89 0)
+			(at 269.24 109.22 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9074,7 +9078,7 @@
 			)
 		)
 		(property "Footprint" "Library:MCP6004"
-			(at 121.92 140.97 0)
+			(at 267.97 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9085,7 +9089,7 @@
 			)
 		)
 		(property "Datasheet" "http://ww1.microchip.com/downloads/en/DeviceDoc/21733j.pdf"
-			(at 124.46 138.43 0)
+			(at 270.51 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9096,7 +9100,7 @@
 			)
 		)
 		(property "Description" "1MHz, Low-Power Op Amp, DIP-14/SOIC-14/TSSOP-14"
-			(at 123.19 143.51 0)
+			(at 269.24 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9269,7 +9273,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Library:74HC4051"
 			(at 237.49 88.9 0)
 			(hide yes)
 			(show_name no)
@@ -9586,7 +9590,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 176.276 115.316 90)
 			(hide yes)
 			(show_name no)
@@ -9743,7 +9747,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 150.876 36.576 90)
 			(hide yes)
 			(show_name no)
@@ -9822,7 +9826,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 177.8 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -9969,7 +9973,7 @@
 				)
 			)
 		)
-		(property "Value" "0.47uF"
+		(property "Value" "0.1uF"
 			(at 162.56 43.688 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9979,7 +9983,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 166.37 41.91 0)
 			(hide yes)
 			(show_name no)
@@ -10136,7 +10140,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 196.596 73.914 90)
 			(hide yes)
 			(show_name no)
@@ -10302,7 +10306,7 @@
 	)
 	(symbol
 		(lib_id "Amplifier_Operational:MCP6004")
-		(at 149.86 59.69 0)
+		(at 180.34 27.94 0)
 		(unit 2)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10313,7 +10317,7 @@
 		(fields_autoplaced yes)
 		(uuid "99fb3196-cb9c-4184-af6d-15799823162a")
 		(property "Reference" "U4"
-			(at 149.86 49.53 0)
+			(at 180.34 17.78 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10323,7 +10327,7 @@
 			)
 		)
 		(property "Value" "MCP6004"
-			(at 149.86 52.07 0)
+			(at 180.34 20.32 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10333,7 +10337,7 @@
 			)
 		)
 		(property "Footprint" "Library:MCP6004"
-			(at 148.59 57.15 0)
+			(at 179.07 25.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10344,7 +10348,7 @@
 			)
 		)
 		(property "Datasheet" "http://ww1.microchip.com/downloads/en/DeviceDoc/21733j.pdf"
-			(at 151.13 54.61 0)
+			(at 181.61 22.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10355,7 +10359,7 @@
 			)
 		)
 		(property "Description" "1MHz, Low-Power Op Amp, DIP-14/SOIC-14/TSSOP-14"
-			(at 149.86 59.69 0)
+			(at 180.34 27.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10447,7 +10451,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 266.7 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -10526,7 +10530,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 178.816 39.116 90)
 			(hide yes)
 			(show_name no)
@@ -10721,7 +10725,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 200.66 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -10878,7 +10882,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 195.326 110.744 90)
 			(hide yes)
 			(show_name no)
@@ -10936,7 +10940,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "bbcee4a9-4060-4e58-8cf0-22b210e18536")
 		(property "Reference" "R1"
 			(at 101.6 146.0499 0)
@@ -10960,9 +10963,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
-			(at 100.076 147.574 90)
-			(hide yes)
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+			(at 81.28 164.846 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11195,7 +11197,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 201.93 73.66 0)
 			(hide yes)
 			(show_name no)
@@ -11276,7 +11278,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 134.366 34.544 90)
 			(hide yes)
 			(show_name no)
@@ -11355,7 +11357,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 149.86 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -11424,7 +11426,7 @@
 				)
 			)
 		)
-		(property "Value" "0.47uF"
+		(property "Value" "0.1uF"
 			(at 160.02 119.888 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11434,7 +11436,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 163.83 118.11 0)
 			(hide yes)
 			(show_name no)
@@ -11515,7 +11517,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 134.366 109.474 90)
 			(hide yes)
 			(show_name no)
@@ -11596,7 +11598,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 120.65 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -11675,7 +11677,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 203.2 36.83 0)
 			(hide yes)
 			(show_name no)
@@ -11754,7 +11756,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 167.386 35.814 90)
 			(hide yes)
 			(show_name no)
@@ -11835,7 +11837,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 133.35 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -12070,7 +12072,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 151.13 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -12232,7 +12234,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 114.3 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -12391,7 +12393,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 119.38 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -12590,7 +12592,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 125.73 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -12669,7 +12671,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 234.95 36.83 0)
 			(hide yes)
 			(show_name no)
@@ -12748,7 +12750,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
 			(at 179.07 43.18 0)
 			(hide yes)
 			(show_name no)
@@ -12908,7 +12910,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
 			(at 149.606 72.136 90)
 			(hide yes)
 			(show_name no)
@@ -12988,7 +12990,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Library:QMC5883P"
 			(at 255.27 139.7 0)
 			(hide yes)
 			(show_name no)
