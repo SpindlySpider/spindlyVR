@@ -3825,16 +3825,6 @@
 	)
 	(wire
 		(pts
-			(xy 67.31 78.74) (xy 60.96 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2619d4bc-2168-412d-8251-6c5b25e1283b")
-	)
-	(wire
-		(pts
 			(xy 157.48 25.4) (xy 158.75 25.4)
 		)
 		(stroke
@@ -3892,16 +3882,6 @@
 			(type default)
 		)
 		(uuid "2c1364d9-48b8-429e-bc96-67cfc5817251")
-	)
-	(wire
-		(pts
-			(xy 67.31 81.28) (xy 60.96 81.28)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2df3f5d6-464b-403f-949a-92a2c07b97b0")
 	)
 	(wire
 		(pts
@@ -4115,6 +4095,16 @@
 	)
 	(wire
 		(pts
+			(xy 21.59 81.28) (xy 25.4 81.28)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "41fc4900-172c-4e12-a88b-6e9c0fa9a80e")
+	)
+	(wire
+		(pts
 			(xy 158.75 35.56) (xy 158.75 40.64)
 		)
 		(stroke
@@ -4292,6 +4282,16 @@
 			(type default)
 		)
 		(uuid "5787202f-0e4a-4fc9-9f6c-23cc1a6f042c")
+	)
+	(wire
+		(pts
+			(xy 21.59 76.2) (xy 25.4 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5795db18-63cf-42e3-a707-c19502e2e988")
 	)
 	(wire
 		(pts
@@ -4912,6 +4912,16 @@
 			(type default)
 		)
 		(uuid "a081140c-bf14-4e48-b465-14d4bdc94a48")
+	)
+	(wire
+		(pts
+			(xy 21.59 78.74) (xy 25.4 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a0a860dd-913e-4715-a5ff-d2111157caa5")
 	)
 	(wire
 		(pts
@@ -5695,16 +5705,6 @@
 	)
 	(wire
 		(pts
-			(xy 67.31 76.2) (xy 60.96 76.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f30b9907-2be1-4541-9299-5c2692d9d599")
-	)
-	(wire
-		(pts
 			(xy 252.73 146.05) (xy 252.73 135.89)
 		)
 		(stroke
@@ -5904,12 +5904,12 @@
 		(uuid "1dc24801-4f19-4500-8749-bf76c1060c67")
 	)
 	(label "SELECT_2"
-		(at 67.31 81.28 0)
+		(at 21.59 81.28 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "250e3d4e-f3a0-4a44-96d4-916988304eae")
 	)
@@ -6127,12 +6127,12 @@
 		(uuid "cfd6877d-717e-41e1-ae19-9086bb000d0f")
 	)
 	(label "SELECT_0"
-		(at 67.31 76.2 0)
+		(at 21.59 76.2 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "d465f4de-d8e2-4eb4-8c68-14bf6734a02a")
 	)
@@ -6167,12 +6167,12 @@
 		(uuid "ec302f9c-453b-4064-b303-7801256617fc")
 	)
 	(label "SELECT_1"
-		(at 67.31 78.74 0)
+		(at 21.59 78.74 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "f5223dfa-fb72-4172-b91f-bc1da78ebee1")
 	)

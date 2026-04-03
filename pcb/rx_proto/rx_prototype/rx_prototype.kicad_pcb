@@ -14546,14 +14546,6 @@
 		(uuid "8a679187-8350-40ca-9536-04ea88acaece")
 	)
 	(segment
-		(start 142.24 50.8)
-		(end 149.86 50.8)
-		(width 0.2)
-		(layer "In1.Cu")
-		(net "/SELECT_1")
-		(uuid "295f01c6-21f2-4235-b085-60a18c8b2efa")
-	)
-	(segment
 		(start 149.86 48.26)
 		(end 142.24 48.26)
 		(width 0.2)

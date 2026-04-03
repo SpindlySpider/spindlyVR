@@ -3795,6 +3795,16 @@
 	)
 	(wire
 		(pts
+			(xy 247.65 78.74) (xy 251.46 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "20e8a06f-e462-4963-abd1-591dbea61e6d")
+	)
+	(wire
+		(pts
 			(xy 130.81 110.49) (xy 132.08 110.49)
 		)
 		(stroke
@@ -3822,16 +3832,6 @@
 			(type default)
 		)
 		(uuid "25a28c64-5d73-4ff6-a006-6eca3c3c711e")
-	)
-	(wire
-		(pts
-			(xy 67.31 78.74) (xy 60.96 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2619d4bc-2168-412d-8251-6c5b25e1283b")
 	)
 	(wire
 		(pts
@@ -3892,16 +3892,6 @@
 			(type default)
 		)
 		(uuid "2c1364d9-48b8-429e-bc96-67cfc5817251")
-	)
-	(wire
-		(pts
-			(xy 67.31 81.28) (xy 60.96 81.28)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2df3f5d6-464b-403f-949a-92a2c07b97b0")
 	)
 	(wire
 		(pts
@@ -4022,6 +4012,16 @@
 			(type default)
 		)
 		(uuid "3a7a1e54-91a8-4077-9dbf-517d77b6619f")
+	)
+	(wire
+		(pts
+			(xy 247.65 76.2) (xy 251.46 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3b62d502-df03-458d-bedf-3f66d06960e1")
 	)
 	(wire
 		(pts
@@ -4422,16 +4422,6 @@
 			(type default)
 		)
 		(uuid "6745093d-45e8-4e60-a657-d01b79c8f217")
-	)
-	(wire
-		(pts
-			(xy 251.46 78.74) (xy 247.65 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "67499db7-ee9a-49cd-aea4-b9b96f60a05f")
 	)
 	(wire
 		(pts
@@ -5035,7 +5025,7 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 68.58) (xy 60.96 68.58)
+			(xy 64.77 68.58) (xy 60.96 68.58)
 		)
 		(stroke
 			(width 0)
@@ -5335,6 +5325,16 @@
 	)
 	(wire
 		(pts
+			(xy 60.96 63.5) (xy 64.77 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "db4440ab-9f92-4458-97a2-22b6349c5364")
+	)
+	(wire
+		(pts
 			(xy 189.23 110.49) (xy 182.88 110.49)
 		)
 		(stroke
@@ -5342,16 +5342,6 @@
 			(type default)
 		)
 		(uuid "dca72a37-be48-4ebf-8f0a-e4f4a06e0037")
-	)
-	(wire
-		(pts
-			(xy 251.46 76.2) (xy 247.65 76.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "dce3ed05-b0d1-4472-8b58-845f1199d259")
 	)
 	(wire
 		(pts
@@ -5695,16 +5685,6 @@
 	)
 	(wire
 		(pts
-			(xy 67.31 76.2) (xy 60.96 76.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f30b9907-2be1-4541-9299-5c2692d9d599")
-	)
-	(wire
-		(pts
 			(xy 252.73 146.05) (xy 252.73 135.89)
 		)
 		(stroke
@@ -5904,12 +5884,12 @@
 		(uuid "1dc24801-4f19-4500-8749-bf76c1060c67")
 	)
 	(label "SELECT_2"
-		(at 67.31 81.28 0)
+		(at 25.4 81.28 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "250e3d4e-f3a0-4a44-96d4-916988304eae")
 	)
@@ -5954,7 +5934,7 @@
 		(uuid "40d0ed52-e4a9-4a25-9984-24a7ed6eb8d8")
 	)
 	(label "ADC_0"
-		(at 71.12 68.58 0)
+		(at 64.77 68.58 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6067,7 +6047,7 @@
 		(uuid "8fe0c8f9-96b0-4971-a091-15018090bc41")
 	)
 	(label "V_OUT3"
-		(at 251.46 78.74 0)
+		(at 251.46 76.2 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6107,7 +6087,7 @@
 		(uuid "c1ebbb0e-639a-425d-b651-03e7ad73c492")
 	)
 	(label "V_OUT4"
-		(at 251.46 76.2 0)
+		(at 251.46 78.74 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6127,12 +6107,12 @@
 		(uuid "cfd6877d-717e-41e1-ae19-9086bb000d0f")
 	)
 	(label "SELECT_0"
-		(at 67.31 76.2 0)
+		(at 25.4 76.2 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "d465f4de-d8e2-4eb4-8c68-14bf6734a02a")
 	)
@@ -6145,6 +6125,16 @@
 			(justify left bottom)
 		)
 		(uuid "d50fb2a4-11e0-44d5-b43f-11c213d3dd0c")
+	)
+	(label "V_BIAS"
+		(at 64.77 63.5 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e7b5072f-ee39-42ab-a50d-01b8a14eda41")
 	)
 	(label "V_OUT6"
 		(at 189.23 104.14 0)
@@ -6167,12 +6157,12 @@
 		(uuid "ec302f9c-453b-4064-b303-7801256617fc")
 	)
 	(label "SELECT_1"
-		(at 67.31 78.74 0)
+		(at 25.4 78.74 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "f5223dfa-fb72-4172-b91f-bc1da78ebee1")
 	)
@@ -6237,7 +6227,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 158.496 77.724 90)
 			(hide yes)
 			(show_name no)
@@ -6445,7 +6435,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 116.84 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -6804,7 +6794,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 191.77 27.94 0)
 			(hide yes)
 			(show_name no)
@@ -6973,7 +6963,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 167.386 124.206 90)
 			(hide yes)
 			(show_name no)
@@ -7058,7 +7048,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 143.256 75.946 90)
 			(hide yes)
 			(show_name no)
@@ -7145,7 +7135,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 133.35 41.91 0)
 			(hide yes)
 			(show_name no)
@@ -7230,7 +7220,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 52.07 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -7317,7 +7307,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 124.714 136.906 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7572,7 +7562,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 44.196 150.114 90)
 			(hide yes)
 			(show_name no)
@@ -7741,7 +7731,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 139.7 125.73 0)
 			(hide yes)
 			(show_name no)
@@ -7828,7 +7818,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 109.22 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -7913,7 +7903,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 182.88 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -7998,7 +7988,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 155.956 120.904 90)
 			(hide yes)
 			(show_name no)
@@ -8085,7 +8075,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 127 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -8170,7 +8160,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 197.866 37.084 90)
 			(hide yes)
 			(show_name no)
@@ -8498,7 +8488,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 180.34 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -8583,7 +8573,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 154.94 127 0)
 			(hide yes)
 			(show_name no)
@@ -8790,7 +8780,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 170.18 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -8961,7 +8951,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 104.14 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -9796,7 +9786,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 169.926 81.026 90)
 			(hide yes)
 			(show_name no)
@@ -9965,7 +9955,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 150.876 36.576 90)
 			(hide yes)
 			(show_name no)
@@ -10050,7 +10040,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 167.64 128.27 0)
 			(hide yes)
 			(show_name no)
@@ -10219,7 +10209,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 166.37 41.91 0)
 			(hide yes)
 			(show_name no)
@@ -10388,7 +10378,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 186.436 122.174 90)
 			(hide yes)
 			(show_name no)
@@ -10717,7 +10707,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 266.7 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -10802,7 +10792,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 178.816 39.116 90)
 			(hide yes)
 			(show_name no)
@@ -11009,7 +10999,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 194.31 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -11178,7 +11168,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 188.976 76.454 90)
 			(hide yes)
 			(show_name no)
@@ -11265,7 +11255,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 48.26 193.802 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11517,7 +11507,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 191.77 121.92 0)
 			(hide yes)
 			(show_name no)
@@ -11604,7 +11594,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 134.366 34.544 90)
 			(hide yes)
 			(show_name no)
@@ -11689,7 +11679,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 143.51 81.28 0)
 			(hide yes)
 			(show_name no)
@@ -11774,7 +11764,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 157.48 83.82 0)
 			(hide yes)
 			(show_name no)
@@ -11861,7 +11851,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 128.016 75.184 90)
 			(hide yes)
 			(show_name no)
@@ -11948,7 +11938,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 120.65 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -12033,7 +12023,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 203.2 36.83 0)
 			(hide yes)
 			(show_name no)
@@ -12118,7 +12108,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 167.386 35.814 90)
 			(hide yes)
 			(show_name no)
@@ -12205,7 +12195,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 123.19 124.46 0)
 			(hide yes)
 			(show_name no)
@@ -12458,7 +12448,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 151.13 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -12545,7 +12535,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 101.6 131.572 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12631,7 +12621,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 114.3 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -12802,7 +12792,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 109.22 116.84 0)
 			(hide yes)
 			(show_name no)
@@ -13013,7 +13003,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 115.57 116.84 0)
 			(hide yes)
 			(show_name no)
@@ -13098,7 +13088,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 234.95 36.83 0)
 			(hide yes)
 			(show_name no)
@@ -13183,7 +13173,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+		(property "Footprint" "C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
 			(at 179.07 43.18 0)
 			(hide yes)
 			(show_name no)
@@ -13270,7 +13260,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 109.22 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -13355,7 +13345,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal"
+		(property "Footprint" "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
 			(at 139.446 120.396 90)
 			(hide yes)
 			(show_name no)
