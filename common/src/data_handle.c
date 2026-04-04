@@ -18,6 +18,7 @@ K_MUTEX_DEFINE(rx_mutex);
 K_MUTEX_DEFINE(rx_signal_mutex);
 K_MUTEX_DEFINE(tx_mutex);
 K_MUTEX_DEFINE(pos_mutex);
+K_MUTEX_DEFINE(timestamp_mutex);
 // store phase and quaternion of TX
 struct data_container_t tx_data_container = {0};
 // create empty container for ADC & accel & gyro
@@ -26,6 +27,8 @@ struct rx_data_container_t rx_data_container = {0};
 struct pos_q_t pos_orientation_container = {0};
 // init container for matched filter and dynamic gain
 struct rx_data_signal_t rx_data_signal_container = {.gain = NRF_SAADC_GAIN1_6};
+// store timestamp to determine how much to fast forward ADC reading times
+static uint32_t phase_timestamp;
 #endif
 
 struct data_container_t data_container = {0};
@@ -69,14 +72,41 @@ int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c) {
   for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
     // *1000 because in KHZ
     float time = (float)i / (CONFIG_TX_ADC_FREQUENCY * 1000.0f);
+
     float angle = 2.0f * PI * (CONFIG_TX_PWM_FREQUENCY * 1000.0f) * time;
-    cached_s_c->sine[i] = sin(angle);
-    cached_s_c->cosine[i] = cos(angle);
+    // cached_s_c->sine[i] = sinf(angle);
+    // cached_s_c->cosine[i] = cosf(angle);
+
+    // 3. Generate the raw waves
+    float raw_sine = sinf(angle);
+    float raw_cosine = cosf(angle);
+
+    // 4. Calculate the Hann Window to eliminate clock-drift spectral leakage
+    float hann_multiplier =
+        0.5f * (1.0f - cosf(2.0f * PI * (float)i / (float)(CONFIG_TX_SAMPLE_NUMBER - 1)));
+
+    // 5. Apply the window and save to cache
+    cached_s_c->sine[i] = raw_sine * hann_multiplier;
+    cached_s_c->cosine[i] = raw_cosine * hann_multiplier;
   }
   return 0;
 }
 
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
+
+// -- Update timestamp
+void update_timestamp(int32_t timestamp) {
+  k_mutex_lock(&timestamp_mutex, K_FOREVER);
+  phase_timestamp = timestamp;
+  k_mutex_unlock(&timestamp_mutex);
+}
+
+// -- Read timestamp
+void read_timestamp(int32_t *timestamp) {
+  k_mutex_lock(&timestamp_mutex, K_FOREVER);
+  *timestamp = phase_timestamp;
+  k_mutex_unlock(&timestamp_mutex);
+}
 
 // --- TX container manipulation
 void read_tx_data(struct data_container_t *data_destination) {

@@ -9,4 +9,6 @@ int setup_receiver();
 
 void esb_rx_event_handler(struct esb_evt const *event);
 
+int setup_rx_gppi();
+
 #endif

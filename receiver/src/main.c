@@ -2,6 +2,7 @@
 #include "orientation_handle.h"
 #include "qmc5883p.h"
 #include "receive_data.h"
+#include "timer.h"
 
 #include "zephyr/device.h"
 #include "zephyr/sys/util_macro.h"
@@ -29,12 +30,27 @@ int main(void) {
   k_msleep(1000);
   //
   printk("setting up Sensors...\n");
+  k_msleep(1000);
   _err = setup_sensors();
   if (_err != 0) {
     return _err;
   }
 
   printk("All pins are ready!\n");
+
+  printk("Setting up timers\n");
+  k_msleep(1000);
+  _err = setup_timers();
+  if (_err != 0) {
+    return _err;
+  }
+
+  printk("Setting up receiver gppio\n");
+  k_msleep(1000);
+  _err = setup_rx_gppi();
+  if (_err != 0) {
+    return _err;
+  }
 
   // set this up last, or atleast before ADC so timer is available
   printk("Setting up reciever\n");

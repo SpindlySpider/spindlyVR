@@ -1,2 +1,2 @@
 CompileFlags:
-  CompilationDatabase: transmitter/build
+  CompilationDatabase: receiver/build

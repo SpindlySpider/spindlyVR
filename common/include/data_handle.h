@@ -42,6 +42,9 @@ void read_data(struct data_container_t *data_destination);
 int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c);
 
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
+
+
+
 struct rx_data_container_t {
 
   // accel & gyro data for dynamic calibration & position conformation
@@ -78,5 +81,7 @@ void read_rx_adc_data(struct rx_data_signal_t *data_destination);
 void read_pos_q_data(struct pos_q_t *data_destination);
 void update_pos_q_data(float q0, float q1, float q2, float q3, float x, float y,
                        float z);
+void read_timestamp(int32_t *timestamp_buf);
+void update_timestamp(int32_t timestamp);
 #endif
 #endif

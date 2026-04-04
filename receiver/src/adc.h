@@ -5,8 +5,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
-
-
 struct sample_buf_t {
   int16_t x[2][CONFIG_RX_SAMPLE_NUMBER];
   int16_t y[2][CONFIG_RX_SAMPLE_NUMBER];

@@ -105,6 +105,7 @@ int config_saadc() {
   return 0;
 }
 
+
 int config_timer() {
   // incredibly useful:
   // https://github.com/zephyrproject-rtos/hal_nordic/tree/master/nrfx/samples/src/nrfx_timer
@@ -112,8 +113,8 @@ int config_timer() {
               nrfx_timer_irq_handler, &timer_inst, 0);
 
   // get frequency from register - returns 0 for 16mhz
-  uint32_t frequency_enum = NRF_TIMER_BASE_FREQUENCY_GET(timer_inst.p_reg);
-  nrfx_timer_config_t config = NRFX_TIMER_DEFAULT_CONFIG(frequency_enum);
+  uint32_t frequency = NRF_TIMER_BASE_FREQUENCY_GET(timer_inst.p_reg);
+  nrfx_timer_config_t config = NRFX_TIMER_DEFAULT_CONFIG(frequency);
 
   int err = nrfx_timer_init(&timer_inst, &config, NULL);
   if (err != 0){
@@ -122,7 +123,7 @@ int config_timer() {
   }
   nrfx_timer_clear(&timer_inst);
 
-  // need 100 ticks to get 160khz (default ADC value) e.g. 16,000,000 / 160,000 = 100
+  // need 100 ticks to get 160khz (default ADC value) from 16mhz e.g. 16,000,000 / 160,000 = 100
   uint32_t desired_ticks = 16000 / CONFIG_TX_ADC_FREQUENCY;
 
   nrfx_timer_extended_compare(&timer_inst, NRF_TIMER_CC_CHANNEL0, desired_ticks,
@@ -132,8 +133,7 @@ int config_timer() {
   printk("Started timer ticking every %d ticks\n", desired_ticks);
   k_msleep(1000);
 
-  return 0;
-}
+  return 0;}
 
 int config_ppi() {
   // set up generic PPI

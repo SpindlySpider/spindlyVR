@@ -3,7 +3,31 @@
   zephyr,user {
     io-channels=<&adc 0>;
   };
+
+  mux_controls {
+      compatible = "gpio-leds";
+      mux_s0: s0 {
+        //pin 0.11
+        gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+      };
+      mux_s1: s1 {
+        // pin 1.04
+        gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+      };
+      mux_s2: s2 {
+        //pin 1.06
+        gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+      };
+  };
+
+
 };
+
+// &uicr {
+//   // disable bottom 2 pins for nfc
+//   // compatible = "nordic,nrf-uicr";
+//   nfct-pins-as-gpios;
+// };
 
 &adc {
   status = "okay";
@@ -11,6 +35,10 @@
 };
 
 &timer3{
+  status = "okay";
+};
+
+&timer4{
   status = "okay";
 };
 
@@ -42,7 +70,6 @@
   };
 };
 
-// set up pins for PWM
 &pinctrl {
     i2c0_default: i2c0_default{
       group1 {
