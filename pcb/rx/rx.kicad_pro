@@ -521,7 +521,7 @@
     "last_paths": {
       "idf": "",
       "netlist": "",
-      "plot": "/home/spindly/Downloads/rx_gerber/",
+      "plot": "/home/spindly/Downloads/anchor_gerb/",
       "specctra_dsn": "",
       "vrml": ""
     },
@@ -675,7 +675,7 @@
         "uuid": "a14c8521-0da1-4f4b-a604-d1cb44fcbd7d"
       }
     ],
-    "used_designators": "SW1,BT1,U1-2",
+    "used_designators": "",
     "variants": []
   },
   "sheets": [

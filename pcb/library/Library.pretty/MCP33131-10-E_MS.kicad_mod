@@ -1,0 +1,71 @@
+(footprint "MCP33131-10-E/MS"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at -7 -7.5 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "824c69e6-a77d-481b-a217-abf06bb70bf6")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "MCP33131-10-E/MS"
+		(at -7 -6 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "425f2b7b-3336-485f-9e26-55093b9ca855")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "3919c426-9081-47a8-99b0-7977988cb7db")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "d5b7d786-28dd-413f-be3b-7d14306c223c")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr board_only exclude_from_pos_files exclude_from_bom)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_text user "${REFERENCE}"
+		(at -7 -4.5 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "824c1015-a0a0-4223-8db6-a22e8739ca7a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(embedded_fonts no)
+)
