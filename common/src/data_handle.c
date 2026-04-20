@@ -2,6 +2,7 @@
 #include <hal/nrf_saadc.h>
 #include <math.h>
 #include <nrfx_saadc.h>
+#include <stdint.h>
 #include <zephyr/kernel.h>
 
 // handles data: quaternions, amp and phase
@@ -11,14 +12,21 @@
 // required for both Tx & Rx, handles local quaternion data
 K_MUTEX_DEFINE(container_mutex);
 
+K_SEM_DEFINE(radio_sync_sem, 0, 1);
+// used for syncing radio on both TX and RX
+
+K_MUTEX_DEFINE(tx_mutex);
+// store ADC sampling timestamp
+static uint32_t adc_sample_timestamp;
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
 #include <nrfx_saadc.h>
 
 K_MUTEX_DEFINE(rx_mutex);
 K_MUTEX_DEFINE(rx_signal_mutex);
-K_MUTEX_DEFINE(tx_mutex);
 K_MUTEX_DEFINE(pos_mutex);
 K_MUTEX_DEFINE(timestamp_mutex);
+K_MUTEX_DEFINE(adc_timestamp_mutex);
+
 // store phase and quaternion of TX
 struct data_container_t tx_data_container = {0};
 // create empty container for ADC & accel & gyro
@@ -29,6 +37,7 @@ struct pos_q_t pos_orientation_container = {0};
 struct rx_data_signal_t rx_data_signal_container = {.gain = NRF_SAADC_GAIN1_6};
 // store timestamp to determine how much to fast forward ADC reading times
 static uint32_t phase_timestamp;
+
 #endif
 
 struct data_container_t data_container = {0};
@@ -47,13 +56,14 @@ void update_orientation_data(float q0, float q1, float q2, float q3) {
   k_mutex_unlock(&container_mutex);
 }
 
-void update_signal_data(float amp, float phase) {
+void update_signal_data(float amp, float phase, uint32_t timestamp) {
   // lock
   k_mutex_lock(&container_mutex, K_FOREVER);
 
   // Update struct
   data_container.tx_amp = amp;
   data_container.tx_phase = phase;
+  adc_sample_timestamp = timestamp;
 
   // release lock
   k_mutex_unlock(&container_mutex);
@@ -63,6 +73,15 @@ void read_data(struct data_container_t *data_destination) {
   // stores data in data destination struct;
   k_mutex_lock(&container_mutex, K_FOREVER);
   *data_destination = data_container;
+  k_mutex_unlock(&container_mutex);
+}
+
+void read_adc_data(struct data_container_t *data_destination,
+                   uint32_t *timestamp_dest) {
+  // stores data in data destination struct;
+  k_mutex_lock(&container_mutex, K_FOREVER);
+  *data_destination = data_container;
+  *timestamp_dest = adc_sample_timestamp;
   k_mutex_unlock(&container_mutex);
 }
 
@@ -83,7 +102,8 @@ int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c) {
 
     // 4. Calculate the Hann Window to eliminate clock-drift spectral leakage
     float hann_multiplier =
-        0.5f * (1.0f - cosf(2.0f * PI * (float)i / (float)(CONFIG_TX_SAMPLE_NUMBER - 1)));
+        0.5f * (1.0f - cosf(2.0f * PI * (float)i /
+                            (float)(CONFIG_TX_SAMPLE_NUMBER - 1)));
 
     // 5. Apply the window and save to cache
     cached_s_c->sine[i] = raw_sine * hann_multiplier;

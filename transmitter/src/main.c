@@ -9,6 +9,8 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/drivers/clock_control.h>
+#include <zephyr/drivers/clock_control/nrf_clock_control.h>
 
 // #define THREAD_STACK_SIZE 2048
 #define THREAD_STACK_SIZE 4096
@@ -25,10 +27,28 @@ struct k_thread orientation_thread_data;
 
 int32_t _err;
 
+void start_precision_clock(void) {
+  const struct device *const clk = DEVICE_DT_GET_ONE(nordic_nrf_clock);
+  if (!device_is_ready(clk)) {
+    printk("Clock device not ready\n");
+    return;
+  }
+
+  /* Start the high-frequency crystal oscillator (HFXO) */
+  clock_control_on(clk, CLOCK_CONTROL_NRF_SUBSYS_HF);
+
+  printk("HFXO precision clock started.\n");
+}
+
 int main(void) {
 
   k_msleep(2000);
   printk("Starting...\n");
+  k_msleep(2000);
+
+  printk("Start precison clock...\n");
+  start_precision_clock();
+  k_msleep(1000);
 
   printk("setting up PWM...\n");
   _err = setup_pwm();

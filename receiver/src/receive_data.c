@@ -13,44 +13,30 @@
 
 #import "receive_data.h"
 
+extern struct k_sem radio_sync_sem;
+static uint32_t last_frame_pulse_timestamp = 0;
+
 void esb_rx_event_handler(struct esb_evt const *event) {
   if (event->evt_id == ESB_EVENT_RX_RECEIVED) {
     // get time stamp of when packet was received
-    // timestamp when received
-
-    uint32_t receive_time_us =
+    uint32_t current_timestamp =
         nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL1);
-
-    // uint32_t sync_timestamp =
-    // nrf_timer_cc_get(NRF_TIMER2, NRF_TIMER_CC_CHANNEL1);
-
     struct esb_payload rx_payload;
     // read packet from radio
     if (esb_read_rx_payload(&rx_payload) == 0) {
+
+      // printk("RADIO: Got radio packet\n"); // ADD THIS
       union esb_packet incoming_data;
       // copy bytes into union struct to convert back to floats
       memcpy(incoming_data.bytes, rx_payload.data, rx_payload.length);
 
-      // calculate phase before updating struct
-
-      // calculate air time, we are using 2MBPS so / by 2,000,000, time taken
-      // over the air in seconds
-      float TAIR = (sizeof(rx_payload.length) * 8) / 2000000.0f;
-      // we are also using fast ramp up time so TLL is 40us
-      // more info here:
-      // https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/esb/index.html#fast_ramp-up
-      // converted to seconds its 0.000040f. (40/1000000)
-      float total_time = TAIR + 0.000040f;
-
-      float phase = fmodf(incoming_data.data.tx_phase +
-                              2.0f * PI * (20000.0f) * total_time,
-                          2.0f * PI);
-
       update_tx_data(incoming_data.data.q0, incoming_data.data.q1,
-                     incoming_data.data.q2, incoming_data.data.q3, phase);
+                     incoming_data.data.q2, incoming_data.data.q3,
+                     incoming_data.data.tx_phase);
+      update_timestamp(last_frame_pulse_timestamp);
 
-      update_timestamp(receive_time_us);
-
+      last_frame_pulse_timestamp = current_timestamp;
+      k_sem_give(&radio_sync_sem);
       // printk("Phase %f arrived at microsecond: %u\n",
       // incoming_data.data.tx_phase, sync_timestamp);
 
@@ -63,12 +49,18 @@ void esb_rx_event_handler(struct esb_evt const *event) {
   }
 }
 
-int setup_rx_gppi(){
+int setup_rx_gppi() {
   nrfx_gppi_handle_t gppi_timestamp;
 
-  // when we receive a radio packet save the time we got it (for working out phase sign)
+  // when we receive a radio packet save the time we got it (for working out
+  // phase sign)
+  // int err = nrfx_gppi_conn_alloc(
+  //     nrf_radio_event_address_get(NRF_RADIO, NRF_RADIO_EVENT_END),
+  //     nrf_timer_task_address_get(NRF_TIMER4, NRF_TIMER_TASK_CAPTURE1),
+  //     &gppi_timestamp);
+
   int err = nrfx_gppi_conn_alloc(
-      nrf_radio_event_address_get(NRF_RADIO, NRF_RADIO_EVENT_END),
+      nrf_radio_event_address_get(NRF_RADIO, NRF_RADIO_EVENT_ADDRESS),
       nrf_timer_task_address_get(NRF_TIMER4, NRF_TIMER_TASK_CAPTURE1),
       &gppi_timestamp);
 

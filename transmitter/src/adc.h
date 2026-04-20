@@ -13,7 +13,7 @@ int config_timer();
 
 int config_ppi();
 
-int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c);
+int tx_matched_filter(struct cached_sin_cos_t *cached_s_c);
 
 void start_adc_thread(void *, void *, void *);
 

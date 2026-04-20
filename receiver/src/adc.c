@@ -23,17 +23,22 @@
 
 K_SEM_DEFINE(adc_semaphore, 0, 1);
 
+extern struct k_sem radio_sync_sem;
 // setup timer
 // static nrfx_timer_t adc_timer = NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(3));
 
 // used for calculating phase for sign
 static uint32_t local_timestamp;
-static uint32_t adc_timestamp;
+// static uint32_t adc_timestamp;
+static uint32_t adc_timestamp_x;
+static uint32_t adc_timestamp_y;
+static uint32_t adc_timestamp_z;
 
 // this variable is a pointer to the full buffer. static uint32_t current_buffer
 // = 0;
 
 static struct rx_data_signal_t local_signal_data;
+static struct data_container_t local_tx_data;
 
 static const struct gpio_dt_spec mux_s0 =
     GPIO_DT_SPEC_GET(DT_NODELABEL(mux_s0), gpios);
@@ -119,20 +124,42 @@ int config_saadc() {
 int config_adc_ppi() {
   // set up generic PPI
   nrfx_gppi_handle_t gppi_handle;
+  nrfx_gppi_handle_t gppi_adc_timestamp;
+  nrfx_gppi_handle_t gppi_timer_start;
 
-  // connect timer event compare0 to saadc task sample (take a sample each time
-  // timer ticks)
-  int err = nrfx_gppi_conn_alloc(
-      nrf_timer_event_address_get(NRF_TIMER3, NRF_TIMER_EVENT_COMPARE0),
-      nrf_saadc_task_address_get(NRF_SAADC, NRF_SAADC_TASK_SAMPLE),
-      &gppi_handle);
+      // connect timer event compare0 to saadc task sample (take a sample each
+      // time timer ticks)
+      int err = nrfx_gppi_conn_alloc(
+          nrf_timer_event_address_get(NRF_TIMER3, NRF_TIMER_EVENT_COMPARE0),
+          nrf_saadc_task_address_get(NRF_SAADC, NRF_SAADC_TASK_SAMPLE),
+          &gppi_handle);
 
   if (err != 0) {
     return err;
   }
 
+  // capture time of finished ADC sampling
+  err = nrfx_gppi_conn_alloc(
+      nrf_saadc_event_address_get(NRF_SAADC, NRF_SAADC_EVENT_STARTED),
+      nrf_timer_task_address_get(NRF_TIMER4, NRF_TIMER_TASK_CAPTURE2),
+      &gppi_adc_timestamp);
+
+  if (err != 0) {
+    return err;
+  }
+
+  nrfx_gppi_conn_alloc(
+      nrf_saadc_event_address_get(NRF_SAADC, NRF_SAADC_EVENT_STARTED),
+      nrf_timer_task_address_get(NRF_TIMER3, NRF_TIMER_TASK_START),
+      &gppi_timer_start);
+
+  if (err != 0) {
+    return err;
+  }
   // enable this connection
   nrfx_gppi_conn_enable(gppi_handle);
+  nrfx_gppi_conn_enable(gppi_timer_start);
+  nrfx_gppi_conn_enable(gppi_adc_timestamp);
   return 0;
 }
 
@@ -145,63 +172,75 @@ float angle_diff(float angle1, float angle2) {
   return diff;
 }
 
+uint32_t get_safe_delta(uint32_t later_time, uint32_t earlier_time) {
+  if (later_time < earlier_time) {
+    return (4294967000 - earlier_time) + later_time;
+  }
+  return later_time - earlier_time;
+}
+
 void phase_sync_signs() {
+  // 1. Get the hardware snapshots
+  float saved_tx_phase = local_tx_data.tx_phase;
+  uint32_t radio_time = local_timestamp;
 
-  // fast forward phase to when ADC was read
-  uint32_t software_delay_us = adc_timestamp - local_timestamp;
-  float t_software = (float)software_delay_us / 1000000.0f;
+  // 1. Safe Hardware Subtraction
+  uint32_t u_delta_x = get_safe_delta(adc_timestamp_x, radio_time);
+  uint32_t u_delta_y = get_safe_delta(adc_timestamp_y, radio_time);
+  uint32_t u_delta_z = get_safe_delta(adc_timestamp_z, radio_time);
 
-  float expected_radio_phase =
-      fmodf(local_timestamp + 2.0f * PI * 32000.0f * t_software, 2.0f * PI);
+  // 2. Infinite Precision Integer Modulo (500 ticks = 1 wave at 16MHz/32kHz)
+  float delta_phase_x = (float)(u_delta_x % 500) * (2.0f * PI / 500.0f);
+  float delta_phase_y = (float)(u_delta_y % 500) * (2.0f * PI / 500.0f);
+  float delta_phase_z = (float)(u_delta_z % 500) * (2.0f * PI / 500.0f);
 
-  // find the sign of the Z coil comparing read phase to expected phase from Tx
-  float z_diff =
-      angle_diff(expected_radio_phase, local_signal_data.adc_z_phase);
+  // 3. Fast-forward Expected Phase safely
+  float expected_x_phase = fmodf(saved_tx_phase + delta_phase_x, 2.0f * PI);
+  float expected_y_phase = fmodf(saved_tx_phase + delta_phase_y, 2.0f * PI);
+  float expected_z_phase = fmodf(saved_tx_phase + delta_phase_z, 2.0f * PI);
 
-  bool z_is_positive = true;
-  if (z_diff > (PI / 2.0f)) {
-    // if diff is more than 90 deg, upside down
-    z_is_positive = false;
-  }
+  // 5. Analog Circuit Offsets (Tune these to 0.0f first to calibrate!)
+  float OFFSET_X = 0.0f;
+  float OFFSET_Y = 0.0f;
+  float OFFSET_Z = 0.0f;
 
-  // set sign to Z axis
-  if (!z_is_positive) {
-    local_signal_data.adc_z_amp = -local_signal_data.adc_z_amp;
-  }
+  expected_x_phase = fmodf(expected_x_phase - OFFSET_X, 2.0f * PI);
+  expected_y_phase = fmodf(expected_y_phase - OFFSET_Y, 2.0f * PI);
+  expected_z_phase = fmodf(expected_z_phase - OFFSET_Z, 2.0f * PI);
 
-  // find sign of phases relative to z coil
-  float x_diff =
-      angle_diff(local_signal_data.adc_x_phase, local_signal_data.adc_z_phase);
-  float y_diff =
-      angle_diff(local_signal_data.adc_y_phase, local_signal_data.adc_z_phase);
+  if (expected_x_phase < 0.0f)
+    expected_x_phase += 2.0f * PI;
+  if (expected_y_phase < 0.0f)
+    expected_y_phase += 2.0f * PI;
+  if (expected_z_phase < 0.0f)
+    expected_z_phase += 2.0f * PI;
 
-  // if x match z phase gets z sign, otherwise opposite, same for y
-  bool x_matches_z = (x_diff < (PI / 2.0f));
-  bool y_matches_z = (y_diff < (PI / 2.0f));
+  // 6. Calculate difference
+  float x_diff = angle_diff(expected_x_phase, local_signal_data.adc_x_phase);
+  float y_diff = angle_diff(expected_y_phase, local_signal_data.adc_y_phase);
+  float z_diff = angle_diff(expected_z_phase, local_signal_data.adc_z_phase);
 
-  // actually apply the sign x & y
-  if (x_matches_z) {
-    if (!z_is_positive)
-      local_signal_data.adc_x_amp = -local_signal_data.adc_x_amp;
-  } else {
-    if (z_is_positive)
-      local_signal_data.adc_x_amp = -local_signal_data.adc_x_amp;
-  }
-  if (y_matches_z) {
-    if (!z_is_positive)
-      local_signal_data.adc_y_amp = -local_signal_data.adc_y_amp;
-  } else {
-    if (z_is_positive)
-      local_signal_data.adc_y_amp = -local_signal_data.adc_y_amp;
-  }
+  // --- UNCOMMENT THIS TO CALIBRATE ---
+  printk("CALIBRATION -> X Diff: %.3f | Y Diff: %.3f | Z Diff: %.3f\n", x_diff,
+         y_diff, z_diff);
 
-  // update containers for pos algo
-  update_rx_adc_data(local_signal_data.adc_x_phase,
-                     local_signal_data.adc_x_phase, "x");
-  update_rx_adc_data(local_signal_data.adc_x_phase,
-                     local_signal_data.adc_x_phase, "y");
-  update_rx_adc_data(local_signal_data.adc_x_phase,
-                     local_signal_data.adc_x_phase, "z");
+  // 7. Flip signs based on the 90-degree (1.57 rad) threshold
+  local_signal_data.adc_x_amp = (x_diff > 1.5708f)
+                                    ? -fabsf(local_signal_data.adc_x_amp)
+                                    : fabsf(local_signal_data.adc_x_amp);
+  local_signal_data.adc_y_amp = (y_diff > 1.5708f)
+                                    ? -fabsf(local_signal_data.adc_y_amp)
+                                    : fabsf(local_signal_data.adc_y_amp);
+  local_signal_data.adc_z_amp = (z_diff > 1.5708f)
+                                    ? -fabsf(local_signal_data.adc_z_amp)
+                                    : fabsf(local_signal_data.adc_z_amp);
+
+  update_rx_adc_data(local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
+                     "x");
+  update_rx_adc_data(local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
+                     "y");
+  update_rx_adc_data(local_signal_data.adc_z_amp, local_signal_data.adc_z_phase,
+                     "z");
 }
 
 int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
@@ -251,7 +290,7 @@ int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
 
   amp = amp * 1000.0f;
 
-  phase = atan2f(sin_accumulation, cos_accumulation);
+  phase = atan2f(-sin_accumulation, cos_accumulation);
 
   // update container
   update_rx_adc_data(amp, phase, axis);
@@ -259,73 +298,24 @@ int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
   return 0;
 }
 
-// void switch_channel(uint8_t channel_num) {
-//
-//   struct rx_data_signal_t data;
-//   read_rx_adc_data(&data);
-//   // channel_config.channel_config.gain = data.gain;
-//   // err = nrfx_saadc_channel_config(&channel_config);
-//
-//   nrf_saadc_channel_config_t hw_config = {
-//       .resistor_p = NRF_SAADC_RESISTOR_DISABLED,
-//       .resistor_p = NRF_SAADC_RESISTOR_DISABLED,
-//       // .resistor_n = NRF_SAADC_RESISTOR_VDD1_2,
-//       .gain = data.gain,
-//       .reference = NRF_SAADC_REFERENCE_INTERNAL,
-//       .acq_time = NRF_SAADC_ACQTIME_3US,
-//       // .mode = NRF_SAADC_MODE_DIFFERENTIAL,
-//       .mode = NRF_SAADC_MODE_SINGLE_ENDED,
-//       .burst = NRF_SAADC_BURST_DISABLED};
-//
-//   nrf_saadc_channel_init(NRF_SAADC, 0, &hw_config);
-//   // nrf_saadc_channel_input_set(NRF_SAADC, 0, pin, reference);
-//   nrf_saadc_channel_input_set(NRF_SAADC, 0, pin, NRF_SAADC_INPUT_DISABLED);
-//
-//   if (err != 0) {
-//     printk("Error switching channels %d\n", err);
-//     k_msleep(1000);
-//   }
-//   // TODO:
-//   // work out how to incorparate dynamic gain
-// }
-
 void switch_channel(uint8_t channel_num) {
   gpio_pin_set_dt(&mux_s0, (channel_num & 0x01) ? 1 : 0);
   gpio_pin_set_dt(&mux_s1, (channel_num & 0x02) ? 1 : 0);
   gpio_pin_set_dt(&mux_s2, (channel_num & 0x04) ? 1 : 0);
 
-  // gpio_pin_set_dt(&mux_s0, 1);
-  // gpio_pin_set_dt(&mux_s1, 1);
-  // gpio_pin_set_dt(&mux_s2, 1);
-
-  // wait for mux to switch to avoid voltage spike 10 us
-  k_busy_wait(10);
+  k_busy_wait(150);
 }
 
 void adc_sample(uint8_t channel_num, nrf_saadc_value_t *buf) {
   // switch channel
-  // switch_channel(pin, reference);
-  // switch mux
   switch_channel(channel_num);
 
-  // printk("Switched channel\n");
-  // k_msleep(1000);
-  // collect samples
-  nrfx_saadc_buffer_set(buf, CONFIG_RX_SAMPLE_NUMBER);
-  // printk("Set buffer\n");
-  // k_msleep(1000);
-  nrfx_saadc_mode_trigger();
-
-  // printk("Triggered SAADC\n");
-  // k_msleep(1000);
-
+  nrfx_timer_disable(&adc_timer);
   nrfx_timer_clear(&adc_timer);
-
-  nrfx_timer_enable(&adc_timer);
-  // printk("Started timer\n");
-  // k_msleep(1000); // use semaphore to know when samples ready
+  nrfx_saadc_buffer_set(buf, CONFIG_RX_SAMPLE_NUMBER);
+  nrfx_saadc_mode_trigger();
+  // nrfx_timer_enable(&adc_timer);
   k_sem_take(&adc_semaphore, K_FOREVER);
-
   nrfx_timer_disable(&adc_timer);
 }
 int setup_mux_pins() {
@@ -379,12 +369,6 @@ void start_adc_thread(void *, void *, void *) {
   printk("setup ppi\n");
   k_msleep(1000);
 
-  irq_enable(DT_IRQN(DT_NODELABEL(adc)));
-
-  printk("setting up timer\n");
-  k_msleep(1000);
-
-  // config_timer();
   printk("ADC setup finished, taking samples at %d Hz\n",
          CONFIG_RX_UPDATE_RATE);
   k_msleep(1000);
@@ -394,31 +378,40 @@ void start_adc_thread(void *, void *, void *) {
   k_msleep(1000);
 
   while (1) {
+    k_sem_take(&radio_sync_sem, K_FOREVER);
+    // printk("taken semphore\n");
     read_timestamp(&local_timestamp);
+    read_tx_data(&local_tx_data);
 
+    // need to implmenet 2 stage change
     adc_sample(5, sample_buf_x);
-    // adc_sample(3, sample_buf_y);
-    // adc_sample(0, sample_buf_z);
-    // adc_sample(sample_buf_y, PIN_Y, PIN_Y_HIDDEN);
+    adc_timestamp_x = nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL2);
 
-    // timestamp z buffer
-    adc_timestamp = nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL1);
+    adc_sample(3, sample_buf_y);
+    adc_timestamp_y = nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL2);
 
-    // adc_sample(sample_buf_z, PIN_Z, PIN_Z_HIDDEN);
+    adc_sample(2, sample_buf_z);
+    adc_timestamp_z = nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL2);
 
     tx_matched_filter(sample_buf_x, &cached_s_c, "x");
-    // tx_matched_filter(sample_buf_y, &cached_s_c, "y"); // seems to be 0.02
-    // tx_matched_filter(sample_buf_z, &cached_s_c, "z");
+    tx_matched_filter(sample_buf_y, &cached_s_c, "y"); // seems to be 0.02
+    tx_matched_filter(sample_buf_z, &cached_s_c, "z");
 
     read_rx_adc_data(&local_signal_data);
-    printk("received magnet, X: amp: %.6f phase: %.6f | Y: amp: %.6f phase: "
-           "%.6f | Z: amp: %.6f phase: %.6f\n",
-           local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
-           local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
-           local_signal_data.adc_z_amp, local_signal_data.adc_z_phase);
-    // TODO: update gain based on average value -> increase if below a certain
-    // value, decrease if too high?
 
-    k_msleep(1000 / CONFIG_RX_UPDATE_RATE);
+    // phase sync here
+    phase_sync_signs();
+
+    read_rx_adc_data(&local_signal_data);
+    // printk("received magnet, X: amp: %.6f phase: %.6f | Y: amp: %.6f phase: "
+    //        "%.6f | Z: amp: %.6f phase: %.6f\n",
+    //        local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
+    //        local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
+    //        local_signal_data.adc_z_amp, local_signal_data.adc_z_phase);
+
+    // // TODO: update gain based on average value -> increase if below a
+    // certain value, decrease if too high?
+
+    // k_msleep(1000 / CONFIG_RX_UPDATE_RATE);
   }
 }

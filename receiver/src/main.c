@@ -23,10 +23,30 @@ struct k_thread orientation_thread_data;
 
 int32_t _err;
 
+#include <zephyr/drivers/clock_control.h>
+#include <zephyr/drivers/clock_control/nrf_clock_control.h>
+
+void start_precision_clock(void) {
+  const struct device *const clk = DEVICE_DT_GET_ONE(nordic_nrf_clock);
+  if (!device_is_ready(clk)) {
+    printk("Clock device not ready\n");
+    return;
+  }
+
+  /* Start the high-frequency crystal oscillator (HFXO) */
+  clock_control_on(clk, CLOCK_CONTROL_NRF_SUBSYS_HF);
+
+  printk("HFXO precision clock started.\n");
+}
+
 int main(void) {
+
 
   k_msleep(1000);
   printk("Starting...\n");
+  k_msleep(1000);
+  printk("Start precison clock...\n");
+  start_precision_clock();
   k_msleep(1000);
   //
   printk("setting up Sensors...\n");
@@ -42,6 +62,7 @@ int main(void) {
   k_msleep(1000);
   _err = setup_timers();
   if (_err != 0) {
+    printk("failed to setup timer:%d\n", _err);
     return _err;
   }
 

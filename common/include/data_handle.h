@@ -1,22 +1,24 @@
 #ifndef DATA_HANDLE_H
 #define DATA_HANDLE_H
 
-#include <stdint.h>
 #include <hal/nrf_saadc.h>
+#include <stdint.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
 #define PI 3.14159265f
+#define PACKET_TYPE_PULSE 0x01
+#define PACKET_TYPE_FOLLOW_UP 0x02
 
 struct cached_sin_cos_t {
   double sine[CONFIG_TX_SAMPLE_NUMBER];
   double cosine[CONFIG_TX_SAMPLE_NUMBER];
 };
 
+// add packed to make sure compiler does not add padding
 struct data_container_t {
   // Quaternion orientation
   float q0, q1, q2, q3;
-
   // transmitted to Rx so it knows its signed magnetic field
   float tx_amp, tx_phase;
 };
@@ -35,7 +37,9 @@ static uint8_t addr_prefix[8] = {0xC2, 0xC3, 0xC4, 0xC5,
 // local data
 void update_orientation_data(float q0, float q1, float q2, float q3);
 
-void update_signal_data(float amp, float phase);
+void update_signal_data(float amp, float phase, uint32_t timestamp);
+
+void read_adc_data(struct data_container_t *data_destination, uint32_t *timestamp_dest);
 
 void read_data(struct data_container_t *data_destination);
 
@@ -43,17 +47,15 @@ int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c);
 
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
 
-
-
 struct rx_data_container_t {
 
   // accel & gyro data for dynamic calibration & position conformation
-  float accel_x,accel_y,accel_z;
+  float accel_x, accel_y, accel_z;
   float gyro_x, gyro_y, gyro_z;
 };
 
 struct rx_data_signal_t {
-  // struct for storing matched filter results 
+  // struct for storing matched filter results
   // & dynamic gain
   // data container for rx specific attributes
   // Received voltage on Rx tri-axis coil

@@ -29,6 +29,10 @@ void calculate_pos() {
 
   float zp = c2 * x0;
 
+  if (fabsf(bx) < 0.0001f) {
+    bx = (bx < 0.0f) ? -0.0001f : 0.0001f;
+  }
+
   float xp_mag = x0 / sqrtf(1.0f + powf((by / bx), 2));
   float yp_mag = sqrtf(powf(x0, 2) - powf(xp_mag, 2));
 
