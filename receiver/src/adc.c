@@ -20,9 +20,15 @@
 // pin out from here: https://nicekeyboards.com/docs/nice-nano/pinout-schematic/
 // ADC pins
 #define PIN_X NRF_SAADC_INPUT_AIN0 // pin 0.02
+// TODO: move these into KCONFIG
+#define GAIN_X 1
+#define GAIN_Y 2.2307
+#define GAIN_Z 1
 
 K_SEM_DEFINE(adc_semaphore, 0, 1);
 
+// used to pass messages to positioning thread
+extern struct k_msgq positioning_queue;
 extern struct k_sem radio_sync_sem;
 // setup timer
 // static nrfx_timer_t adc_timer = NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(3));
@@ -127,12 +133,12 @@ int config_adc_ppi() {
   nrfx_gppi_handle_t gppi_adc_timestamp;
   nrfx_gppi_handle_t gppi_timer_start;
 
-      // connect timer event compare0 to saadc task sample (take a sample each
-      // time timer ticks)
-      int err = nrfx_gppi_conn_alloc(
-          nrf_timer_event_address_get(NRF_TIMER3, NRF_TIMER_EVENT_COMPARE0),
-          nrf_saadc_task_address_get(NRF_SAADC, NRF_SAADC_TASK_SAMPLE),
-          &gppi_handle);
+  // connect timer event compare0 to saadc task sample (take a sample each
+  // time timer ticks)
+  int err = nrfx_gppi_conn_alloc(
+      nrf_timer_event_address_get(NRF_TIMER3, NRF_TIMER_EVENT_COMPARE0),
+      nrf_saadc_task_address_get(NRF_SAADC, NRF_SAADC_TASK_SAMPLE),
+      &gppi_handle);
 
   if (err != 0) {
     return err;
@@ -179,59 +185,70 @@ uint32_t get_safe_delta(uint32_t later_time, uint32_t earlier_time) {
   return later_time - earlier_time;
 }
 
+// Helper function for safe signed angle wrapping (-PI to PI)
+float wrap_to_pi(float angle) {
+  angle = fmodf(angle, 2.0f * PI);
+  if (angle > PI)
+    angle -= 2.0f * PI;
+  if (angle < -PI)
+    angle += 2.0f * PI;
+  return angle;
+}
+
 void phase_sync_signs() {
-  // 1. Get the hardware snapshots
   float saved_tx_phase = local_tx_data.tx_phase;
   uint32_t radio_time = local_timestamp;
 
-  // 1. Safe Hardware Subtraction
   uint32_t u_delta_x = get_safe_delta(adc_timestamp_x, radio_time);
   uint32_t u_delta_y = get_safe_delta(adc_timestamp_y, radio_time);
   uint32_t u_delta_z = get_safe_delta(adc_timestamp_z, radio_time);
 
-  // 2. Infinite Precision Integer Modulo (500 ticks = 1 wave at 16MHz/32kHz)
   float delta_phase_x = (float)(u_delta_x % 500) * (2.0f * PI / 500.0f);
   float delta_phase_y = (float)(u_delta_y % 500) * (2.0f * PI / 500.0f);
   float delta_phase_z = (float)(u_delta_z % 500) * (2.0f * PI / 500.0f);
 
-  // 3. Fast-forward Expected Phase safely
   float expected_x_phase = fmodf(saved_tx_phase + delta_phase_x, 2.0f * PI);
   float expected_y_phase = fmodf(saved_tx_phase + delta_phase_y, 2.0f * PI);
   float expected_z_phase = fmodf(saved_tx_phase + delta_phase_z, 2.0f * PI);
 
-  // 5. Analog Circuit Offsets (Tune these to 0.0f first to calibrate!)
-  float OFFSET_X = 0.0f;
-  float OFFSET_Y = 0.0f;
-  float OFFSET_Z = 0.0f;
+  // Calculate RAW difference (expected - measured) keeping the sign!
+  float x_raw = expected_x_phase - local_signal_data.adc_x_phase;
+  float y_raw = expected_y_phase - local_signal_data.adc_y_phase;
+  float z_raw = expected_z_phase - local_signal_data.adc_z_phase;
 
-  expected_x_phase = fmodf(expected_x_phase - OFFSET_X, 2.0f * PI);
-  expected_y_phase = fmodf(expected_y_phase - OFFSET_Y, 2.0f * PI);
-  expected_z_phase = fmodf(expected_z_phase - OFFSET_Z, 2.0f * PI);
+  // --- THE COSTAS LOOP (Closed-Loop PLL) ---
+  static float global_clock_drift = 0.0f;
 
-  if (expected_x_phase < 0.0f)
-    expected_x_phase += 2.0f * PI;
-  if (expected_y_phase < 0.0f)
-    expected_y_phase += 2.0f * PI;
-  if (expected_z_phase < 0.0f)
-    expected_z_phase += 2.0f * PI;
+  // Step A: Apply the global drift compensation
+  float x_diff = wrap_to_pi(x_raw - global_clock_drift);
+  float y_diff = wrap_to_pi(y_raw - global_clock_drift);
+  float z_diff = wrap_to_pi(z_raw - global_clock_drift);
 
-  // 6. Calculate difference
-  float x_diff = angle_diff(expected_x_phase, local_signal_data.adc_x_phase);
-  float y_diff = angle_diff(expected_y_phase, local_signal_data.adc_y_phase);
-  float z_diff = angle_diff(expected_z_phase, local_signal_data.adc_z_phase);
+  // Step B: Find distance to nearest 0 or PI.
+  // Multiplying by 2 turns PI into 2PI (which wraps to 0). Divide by 2 to
+  // restore scale!
+  float pll_error = wrap_to_pi(x_diff * 2.0f) / 2.0f;
 
-  // --- UNCOMMENT THIS TO CALIBRATE ---
-  printk("CALIBRATION -> X Diff: %.3f | Y Diff: %.3f | Z Diff: %.3f\n", x_diff,
-         y_diff, z_diff);
+  // Step C: Nudge the drift compensator
+  global_clock_drift = wrap_to_pi(global_clock_drift + (pll_error * 0.05f));
+
+  // Step D: Use absolute value just for the sign check thresholds
+  float abs_x_diff = fabsf(x_diff);
+  float abs_y_diff = fabsf(y_diff);
+  float abs_z_diff = fabsf(z_diff);
+
+  // --- CALIBRATION LOG ---
+  // printk("CALIBRATION -> X Diff: %.3f | Y Diff: %.3f | Z Diff: %.3f\n",
+  //        abs_x_diff, abs_y_diff, abs_z_diff);
 
   // 7. Flip signs based on the 90-degree (1.57 rad) threshold
-  local_signal_data.adc_x_amp = (x_diff > 1.5708f)
+  local_signal_data.adc_x_amp = (abs_x_diff > 1.5708f)
                                     ? -fabsf(local_signal_data.adc_x_amp)
                                     : fabsf(local_signal_data.adc_x_amp);
-  local_signal_data.adc_y_amp = (y_diff > 1.5708f)
+  local_signal_data.adc_y_amp = (abs_y_diff > 1.5708f)
                                     ? -fabsf(local_signal_data.adc_y_amp)
                                     : fabsf(local_signal_data.adc_y_amp);
-  local_signal_data.adc_z_amp = (z_diff > 1.5708f)
+  local_signal_data.adc_z_amp = (abs_z_diff > 1.5708f)
                                     ? -fabsf(local_signal_data.adc_z_amp)
                                     : fabsf(local_signal_data.adc_z_amp);
 
@@ -242,7 +259,6 @@ void phase_sync_signs() {
   update_rx_adc_data(local_signal_data.adc_z_amp, local_signal_data.adc_z_phase,
                      "z");
 }
-
 int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
                       char *axis) {
   // TODO: this can be moved into a common file and values can be passed in, so
@@ -403,14 +419,25 @@ void start_adc_thread(void *, void *, void *) {
     phase_sync_signs();
 
     read_rx_adc_data(&local_signal_data);
+    // TODO: wrap this in some config print statement?
+    //
     // printk("received magnet, X: amp: %.6f phase: %.6f | Y: amp: %.6f phase: "
     //        "%.6f | Z: amp: %.6f phase: %.6f\n",
     //        local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
     //        local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
     //        local_signal_data.adc_z_amp, local_signal_data.adc_z_phase);
 
+    // NOTE: values must be calibrated to your specific coil
+    struct solver_packet_t pos_packet = {
+        .bx = local_signal_data.adc_x_amp * GAIN_X,
+        .by = local_signal_data.adc_y_amp * GAIN_Y,
+        .bz = local_signal_data.adc_z_amp * GAIN_Z};
+
+    k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
+
     // // TODO: update gain based on average value -> increase if below a
     // certain value, decrease if too high?
+    // even if the SNR is bad, with enough samples it should work, additionally it should run in psuedo differntial mode
 
     // k_msleep(1000 / CONFIG_RX_UPDATE_RATE);
   }

@@ -1,4 +1,5 @@
 #include "adc.h"
+#include "position.h"
 #include "orientation_handle.h"
 #include "qmc5883p.h"
 #include "receive_data.h"
@@ -14,12 +15,14 @@
 #define THREAD_PRIORITY 7
 
 K_THREAD_STACK_DEFINE(adc_stack, THREAD_STACK_SIZE);
+// will need to transmit to other
 K_THREAD_STACK_DEFINE(receive_stack, THREAD_STACK_SIZE);
 K_THREAD_STACK_DEFINE(orientation_stack, THREAD_STACK_SIZE);
+K_THREAD_STACK_DEFINE(position_stack, THREAD_STACK_SIZE);
 
-struct k_thread adc_thread_data;
-struct k_thread transmit_thread_data;
+struct k_thread adc_thread_data; struct k_thread transmit_thread_data;
 struct k_thread orientation_thread_data;
+struct k_thread position_thread_data;
 
 int32_t _err;
 
@@ -93,6 +96,11 @@ int main(void) {
   k_thread_create(&orientation_thread_data, orientation_stack,
                   K_THREAD_STACK_SIZEOF(orientation_stack),
                   run_orientation_loop, NULL, NULL, NULL, THREAD_PRIORITY, 0,
+                  K_NO_WAIT);
+
+  k_thread_create(&position_thread_data, position_stack,
+                  K_THREAD_STACK_SIZEOF(position_stack),
+                  start_positioning_thread, NULL, NULL, NULL, THREAD_PRIORITY, 0,
                   K_NO_WAIT);
   while (1) {
     k_sleep(K_FOREVER);

@@ -1,17 +1,19 @@
 #include "data_handle.h"
+#include "zephyr/kernel.h"
 #include <math.h>
 // using static K value here which will need to be adjusted for each Rx, this is
 // because 3*m*s/4*PI is constant and can be substituted for as a single value.
-// further more it
 //
-static int calibration_value = 1;
+static float calibration_value = 24975876.19481111;
 static struct rx_data_signal_t rx_local_data;
 
-void calculate_pos() {
-  read_tx_data(&rx_local_data);
-  float bx = rx_local_data.adc_x_amp;
-  float by = rx_local_data.adc_y_amp;
-  float bz = rx_local_data.adc_z_amp;
+K_MSGQ_DEFINE(positioning_queue, sizeof(struct solver_packet_t), 10, 4);
+
+void calculate_pos(float bx, float by, float bz) {
+  // read_tx_data(&rx_local_data);
+  // float bx = rx_local_data.adc_x_amp;
+  // float by = rx_local_data.adc_y_amp;
+  // float bz = rx_local_data.adc_z_amp;
 
   // cache XY magnitude
   float bxy_mag = sqrtf(powf(bx, 2) + powf(by, 2));
@@ -55,4 +57,14 @@ void calculate_pos() {
   // Done! You now have true 3D spatial coordinates!
   // will need to store these in data structure and transmit to pc dongle
   printk("Final Position: X: %.3f, Y: %.3f, Z: %.3f\n", xp_final, yp_final, zp);
+}
+
+
+void start_positioning_thread(void *, void *, void *){
+  struct solver_packet_t incoming_data;
+  while(1){
+    k_msgq_get(&positioning_queue, &incoming_data, K_FOREVER);
+
+    calculate_pos(incoming_data.bx, incoming_data.by, incoming_data.bz);
+  }
 }

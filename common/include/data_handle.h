@@ -47,6 +47,13 @@ int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c);
 
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
 
+// used to pass measured x,y,z from coil to positioning thread
+struct solver_packet_t {
+    float bx;
+    float by;
+    float bz;
+};
+
 struct rx_data_container_t {
 
   // accel & gyro data for dynamic calibration & position conformation
