@@ -73,11 +73,16 @@ int convert_raw(struct sensor_data_struct *data) {
 }
 
 void update_madgwick(struct sensor_data_struct *data) {
-  MadgwickAHRSupdate(data->gyro_x, -data->gyro_z, data->gyro_y, data->accel_x,
-                     -data->accel_z, data->accel_y, data->mag_x, -data->mag_z,
-                     -data->mag_y);
+  // MadgwickAHRSupdate(data->gyro_x, data->gyro_y, data->gyro_z, data->accel_x,
+  //                    data->accel_y, data->accel_z, -data->mag_x, -data->mag_y,
+  //                    data->mag_z);
+  MadgwickAHRSupdate(data->gyro_x, data->gyro_y, data->gyro_z, data->accel_x,
+                     data->accel_y, data->accel_z,data->mag_x, -data->mag_y,
+                     data->mag_z);
   // MadgwickAHRSupdateIMU(data->gyro_x, -data->gyro_z, data->gyro_y,
   // data->accel_x, -data->accel_z, data->accel_y);
+  // MadgwickAHRSupdateIMU(data->gyro_x, data->gyro_y, data -> gyro_z,
+  // data->accel_x,  data->accel_y, data->accel_z);
 }
 
 void run_orientation_loop(void *, void *, void *) {

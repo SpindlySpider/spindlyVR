@@ -115,6 +115,7 @@ int qmc_read_sensor_data(const struct device *i2c_dev,
 
   if (ret == 0) {
     // bit shift and  bitwise or to create full signed value from registers
+    // doesnt this raw data need to be converted to magnetic value?
     int16_t x = (raw_data[1] << 8) | raw_data[0];
     int16_t y = (raw_data[3] << 8) | raw_data[2];
     int16_t z = (raw_data[5] << 8) | raw_data[4];
