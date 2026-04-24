@@ -16,14 +16,18 @@
 #include <zephyr/sys/printk.h>
 
 // https://github.com/NordicPlayground/nRF52-ADC-examples/tree/master/nrfx_saadc_multi_channel_ppi
-
 // pin out from here: https://nicekeyboards.com/docs/nice-nano/pinout-schematic/
 // ADC pins
 #define PIN_X NRF_SAADC_INPUT_AIN0 // pin 0.02
+// #define PIN_X NRF_SAADC_INPUT_AIN7 // pin 0.31
 // TODO: move these into KCONFIG
-#define GAIN_X 1
-#define GAIN_Y 2.2307
-#define GAIN_Z 1
+// #define GAIN_X 1
+// #define GAIN_Y 1
+// #define GAIN_Z 1
+
+#define GAIN_X 1.0f
+#define GAIN_Y 0.943f
+#define GAIN_Z 0.953f
 
 K_SEM_DEFINE(adc_semaphore, 0, 1);
 
@@ -43,6 +47,8 @@ static uint32_t adc_timestamp_z;
 // this variable is a pointer to the full buffer. static uint32_t current_buffer
 // = 0;
 
+static struct rx_data_container_t local_sensor_data;
+
 static struct rx_data_signal_t local_signal_data;
 static struct data_container_t local_tx_data;
 
@@ -53,16 +59,15 @@ static const struct gpio_dt_spec mux_s1 =
 static const struct gpio_dt_spec mux_s2 =
     GPIO_DT_SPEC_GET(DT_NODELABEL(mux_s2), gpios);
 
-int16_t sample_buf_x[CONFIG_RX_SAMPLE_NUMBER] = {0};
-int16_t sample_buf_y[CONFIG_RX_SAMPLE_NUMBER] = {0};
-int16_t sample_buf_z[CONFIG_RX_SAMPLE_NUMBER] = {0};
+int16_t sample_buf_x[CONFIG_RX_SAMPLE_NUMBER] __attribute__((aligned(4))) = {0};
+int16_t sample_buf_y[CONFIG_RX_SAMPLE_NUMBER] __attribute__((aligned(4))) = {0};
+int16_t sample_buf_z[CONFIG_RX_SAMPLE_NUMBER] __attribute__((aligned(4))) = {0};
 
 int32_t val_mv;
 int32_t err;
 
 // NOTE: store 100(default) signal entries for phase and amp calculation
 static float amp_bias;
-
 struct cached_sin_cos_t cached_s_c = {.sine = {0}, .cosine = {0}};
 
 static void saadc_handler(nrfx_saadc_evt_t const *p_event) {
@@ -82,6 +87,8 @@ int config_saadc() {
   IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_SAADC), IRQ_PRIO_LOWEST,
               nrfx_saadc_irq_handler, 0, 0);
 
+  irq_enable(NRFX_IRQ_NUMBER_GET(NRF_SAADC));
+
   err = nrfx_saadc_init(NRFX_SAADC_DEFAULT_CONFIG_IRQ_PRIORITY);
   if (err != 0) {
     printk("Error setting up SAADC: %d\n", err);
@@ -92,7 +99,7 @@ int config_saadc() {
   k_msleep(1000);
 
   nrfx_saadc_channel_t default_channel =
-      NRFX_SAADC_DEFAULT_CHANNEL_SE(PIN_X, 0);
+      NRFX_SAADC_DEFAULT_CHANNEL_SE(NRF_SAADC_INPUT_AIN0, 0);
   default_channel.channel_config.acq_time = NRF_SAADC_ACQTIME_3US;
   nrfx_saadc_channel_config(&default_channel);
 
@@ -104,6 +111,8 @@ int config_saadc() {
   uint32_t channel_mask = nrfx_saadc_channels_configured_get();
   err = nrfx_saadc_advanced_mode_set(channel_mask, NRF_SAADC_RESOLUTION_12BIT,
                                      &adv_config, saadc_handler);
+
+  nrf_saadc_channel_input_set(NRF_SAADC, 0, PIN_X, NRF_SAADC_INPUT_DISABLED);
 
   // err = nrfx_saadc_advanced_mode_set(BIT(1), NRF_SAADC_RESOLUTION_12BIT,
   // &adv_config, saadc_handler);
@@ -198,6 +207,11 @@ float wrap_to_pi(float angle) {
 void phase_sync_signs() {
   float saved_tx_phase = local_tx_data.tx_phase;
   uint32_t radio_time = local_timestamp;
+  // Add these static variables at the top of the function to remember the last
+  // good sign
+  static float last_trusted_sign_x = 1.0f;
+  static float last_trusted_sign_y = 1.0f;
+  static float last_trusted_sign_z = 1.0f;
 
   uint32_t u_delta_x = get_safe_delta(adc_timestamp_x, radio_time);
   uint32_t u_delta_y = get_safe_delta(adc_timestamp_y, radio_time);
@@ -216,41 +230,72 @@ void phase_sync_signs() {
   float y_raw = expected_y_phase - local_signal_data.adc_y_phase;
   float z_raw = expected_z_phase - local_signal_data.adc_z_phase;
 
-  // --- THE COSTAS LOOP (Closed-Loop PLL) ---
-  static float global_clock_drift = 0.0f;
+  // --- 2nd-ORDER COSTAS LOOP (Proportional-Integral PLL) ---
+  static float phase_offset =
+      0.0f; // The immediate phase correction (Proportional)
+  static float frequency_drift =
+      0.0f; // The learned crystal speed difference (Integral)
 
-  // Step A: Apply the global drift compensation
-  float x_diff = wrap_to_pi(x_raw - global_clock_drift);
-  float y_diff = wrap_to_pi(y_raw - global_clock_drift);
-  float z_diff = wrap_to_pi(z_raw - global_clock_drift);
+  // 1. STRICT Z-AXIS LOCK (Do not swap axes!)
+  // We strictly use the Z-axis to calculate crystal clock drift because it has
+  // the highest SNR and a continuous, unbroken analog phase delay.
+  float best_raw_phase = z_raw;
+  float max_amp = fabsf(local_signal_data.adc_z_amp);
 
-  // Step B: Find distance to nearest 0 or PI.
-  // Multiplying by 2 turns PI into 2PI (which wraps to 0). Divide by 2 to
-  // restore scale!
-  float pll_error = wrap_to_pi(x_diff * 2.0f) / 2.0f;
+  // 2. APPLY CONTINUOUS DRIFT PREDICTION
+  phase_offset = wrap_to_pi(phase_offset + frequency_drift);
 
-  // Step C: Nudge the drift compensator
-  global_clock_drift = wrap_to_pi(global_clock_drift + (pll_error * 0.05f));
+  // 3. CALCULATE ERROR ON Z-AXIS ONLY
+  float best_diff = wrap_to_pi(best_raw_phase - phase_offset);
+  // Costas loop strips the 180-degree BPSK modulation so it only tracks clock
+  // drift
+  float pll_error = wrap_to_pi(best_diff * 2.0f) / 2.0f;
 
-  // Step D: Use absolute value just for the sign check thresholds
+  // 4. UPDATE THE PI CONTROLLER (Only if Z is loud enough to trust)
+  if (max_amp > 0.05f) {
+    // Proportional (Alpha): 0.01f is good, keeps it smooth
+    phase_offset = wrap_to_pi(phase_offset + (pll_error * 0.01f));
+
+    // Integral (Beta): Keep this very small so it learns the crystal slowly
+    frequency_drift = wrap_to_pi(frequency_drift + (pll_error * 0.0005f));
+  }
+
+  // 5. APPLY THE LOCKED PHASE TO ALL AXES
+  float x_diff = wrap_to_pi(x_raw - phase_offset);
+  float y_diff = wrap_to_pi(y_raw - phase_offset);
+  float z_diff = wrap_to_pi(z_raw - phase_offset);
+
+  // 6. Calculate absolute differences for the sign check thresholds
   float abs_x_diff = fabsf(x_diff);
   float abs_y_diff = fabsf(y_diff);
   float abs_z_diff = fabsf(z_diff);
-
   // --- CALIBRATION LOG ---
   // printk("CALIBRATION -> X Diff: %.3f | Y Diff: %.3f | Z Diff: %.3f\n",
-  //        abs_x_diff, abs_y_diff, abs_z_diff);
+  // abs_x_diff, abs_y_diff, abs_z_diff);
 
-  // 7. Flip signs based on the 90-degree (1.57 rad) threshold
-  local_signal_data.adc_x_amp = (abs_x_diff > 1.5708f)
-                                    ? -fabsf(local_signal_data.adc_x_amp)
-                                    : fabsf(local_signal_data.adc_x_amp);
-  local_signal_data.adc_y_amp = (abs_y_diff > 1.5708f)
-                                    ? -fabsf(local_signal_data.adc_y_amp)
-                                    : fabsf(local_signal_data.adc_y_amp);
-  local_signal_data.adc_z_amp = (abs_z_diff > 1.5708f)
-                                    ? -fabsf(local_signal_data.adc_z_amp)
-                                    : fabsf(local_signal_data.adc_z_amp);
+  // 7. THE HYSTERESIS CLAMP (The Magic Fix for ALL axes)
+  // Only update the sign if the signal is loud enough to overcome the noise
+  // floor. If it drops below 0.02f, the `if` statement skips, and it remembers
+  // the last good sign.
+  if (fabsf(local_signal_data.adc_x_amp) > 1.0f) {
+    last_trusted_sign_x = (abs_x_diff > 1.5708f) ? -1.0f : 1.0f;
+  }
+
+  if (fabsf(local_signal_data.adc_y_amp) > 1.02f) {
+    last_trusted_sign_y = (abs_y_diff > 1.5708f) ? -1.0f : 1.0f;
+  }
+
+  if (fabsf(local_signal_data.adc_z_amp) > 1.0f) {
+    last_trusted_sign_z = (abs_z_diff > 1.5708f) ? -1.0f : 1.0f;
+  }
+
+  // 8. APPLY THE TRUSTED SIGNS
+  local_signal_data.adc_x_amp =
+      last_trusted_sign_x * fabsf(local_signal_data.adc_x_amp);
+  local_signal_data.adc_y_amp =
+      last_trusted_sign_y * fabsf(local_signal_data.adc_y_amp);
+  local_signal_data.adc_z_amp =
+      last_trusted_sign_z * fabsf(local_signal_data.adc_z_amp);
 
   update_rx_adc_data(local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
                      "x");
@@ -324,31 +369,60 @@ void switch_channel(uint8_t channel_num) {
 
 void adc_sample(uint8_t channel_num, nrf_saadc_value_t *buf) {
   // switch channel
+  // printk("switching channel...\n");
+  // k_msleep(1000);
   switch_channel(channel_num);
 
+  // printk("reseting timer...\n");
+  // k_msleep(1000);
   nrfx_timer_disable(&adc_timer);
+  // printk("disabled timer...\n");
+  // k_msleep(1000);
   nrfx_timer_clear(&adc_timer);
-  nrfx_saadc_buffer_set(buf, CONFIG_RX_SAMPLE_NUMBER);
+  // printk("cleared timer...\n");
+  // k_msleep(1000);
+
+  // nrfx_saadc_abort();
+  // printk("aborted current ops...\n");
+  // k_msleep(1000);
+  // nrfx_saadc_buffer_set(buf, CONFIG_RX_SAMPLE_NUMBER);
+  nrfx_err_t err = nrfx_saadc_buffer_set(buf, CONFIG_RX_SAMPLE_NUMBER);
+  if (err != 0) {
+    printk("CRITICAL ERROR: Buffer set failed with code %d\n", err);
+    k_msleep(5000);
+  }
+  // printk("set buffer...\n");
+  // k_msleep(1000);
   nrfx_saadc_mode_trigger();
+  // printk("triggered saadc...\n");
+  // k_msleep(1000);
   // nrfx_timer_enable(&adc_timer);
   k_sem_take(&adc_semaphore, K_FOREVER);
+  // printk("got the semaphore...\n");
+  // k_msleep(1000);
   nrfx_timer_disable(&adc_timer);
+
+  // printk("finished...\n");
+  // k_msleep(1000);
 }
 int setup_mux_pins() {
   int err;
   err = gpio_pin_configure_dt(&mux_s0, GPIO_OUTPUT_INACTIVE);
   if (err != 0) {
     printk("error setting up mux: %d", err);
+    k_msleep(2000);
     return err;
   }
   err = gpio_pin_configure_dt(&mux_s1, GPIO_OUTPUT_INACTIVE);
   if (err != 0) {
     printk("error setting up mux: %d", err);
+    k_msleep(2000);
     return err;
   }
   err = gpio_pin_configure_dt(&mux_s2, GPIO_OUTPUT_INACTIVE);
   if (err != 0) {
     printk("error setting up mux: %d", err);
+    k_msleep(2000);
     return err;
   }
   return 0;
@@ -398,16 +472,21 @@ void start_adc_thread(void *, void *, void *) {
     // printk("taken semphore\n");
     read_timestamp(&local_timestamp);
     read_tx_data(&local_tx_data);
-
+    //
     // need to implmenet 2 stage change
-    adc_sample(5, sample_buf_x);
+    // vout4 L1
+    adc_sample(0, sample_buf_x);
     adc_timestamp_x = nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL2);
 
+    // vout2 L4
     adc_sample(3, sample_buf_y);
-    adc_timestamp_y = nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL2);
+    adc_timestamp_y = nrfx_timer_capture_get(&rx_timer,
+    NRF_TIMER_CC_CHANNEL2);
 
-    adc_sample(2, sample_buf_z);
-    adc_timestamp_z = nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL2);
+    // vout6 L3
+    adc_sample(5, sample_buf_z);
+    adc_timestamp_z = nrfx_timer_capture_get(&rx_timer,
+    NRF_TIMER_CC_CHANNEL2);
 
     tx_matched_filter(sample_buf_x, &cached_s_c, "x");
     tx_matched_filter(sample_buf_y, &cached_s_c, "y"); // seems to be 0.02
@@ -427,17 +506,29 @@ void start_adc_thread(void *, void *, void *) {
     //        local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
     //        local_signal_data.adc_z_amp, local_signal_data.adc_z_phase);
 
+    read_rx_data(&local_sensor_data);
+
+    // printk("X: amp: %.6f | Y: amp: %.6f"
+    //        " | Z: amp: %.6f | accel X : %.6f | accel Y : %.6f | | accel Z
+    //:
+    //        %.6f\n", local_signal_data.adc_x_amp,
+    //local_signal_data.adc_y_amp,
+    //        local_signal_data.adc_z_amp, local_sensor_data.accel_x,
+    //        local_sensor_data.accel_y, local_sensor_data.accel_z);
+
     // NOTE: values must be calibrated to your specific coil
     struct solver_packet_t pos_packet = {
-        .bx = local_signal_data.adc_x_amp * GAIN_X,
-        .by = local_signal_data.adc_y_amp * GAIN_Y,
-        .bz = local_signal_data.adc_z_amp * GAIN_Z};
+        .bx = (local_signal_data.adc_x_amp * GAIN_X),
+        .by = -(local_signal_data.adc_y_amp * GAIN_Y),
+        .bz = (local_signal_data.adc_z_amp * GAIN_Z)};
 
     k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
 
     // // TODO: update gain based on average value -> increase if below a
     // certain value, decrease if too high?
-    // even if the SNR is bad, with enough samples it should work, additionally it should run in psuedo differntial mode
+    // even if the SNR is bad, with enough samples it should work,
+    // additionally
+    // it should run in psuedo differntial mode
 
     // k_msleep(1000 / CONFIG_RX_UPDATE_RATE);
   }

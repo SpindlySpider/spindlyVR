@@ -76,18 +76,27 @@ def main():
         glLoadIdentity()
         glTranslatef(0, 0.0, -7.0)
 
-        # Apply Quaternion Rotation
-        # PyGame/OpenGL expects angle + axis (x,y,z)
-        # We must convert Quaternion to Axis-Angle
+# Convert Quaternion to Axis-Angle
         import math
         angle = 2 * math.acos(w) * 180.0 / math.pi
         s = math.sqrt(1 - w*w)
         if s < 0.001: 
-            ax, ay, az = x, y, z # Avoid divide by zero
+            ax, ay, az = x, y, z 
         else:
             ax, ay, az = x/s, y/s, z/s
         
-        glRotatef(angle, ax, ay, az)
+        # --- THE FIX: MAP IMU AXES TO OPENGL SCREEN AXES ---
+        # Assuming your IMU X is Forward, Y is Right, Z is Up:
+        # OpenGL X (Screen Right) = IMU Y (Physical Right)
+        # OpenGL Y (Screen Up)    = IMU Z (Physical Up)
+        # OpenGL Z (Screen Out)   = IMU -X (Physical Backward)
+        
+        opengl_x = -ay
+        opengl_y = az
+        opengl_z = -ax
+        
+        # Apply the MAPPED rotation
+        glRotatef(angle, opengl_x, opengl_y, opengl_z)
 
         draw_cube()
         pygame.display.flip()

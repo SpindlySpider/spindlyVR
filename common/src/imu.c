@@ -38,6 +38,7 @@ int read_imu(struct sensor_data_struct *data) {
   float64_t gx = sensor_value_to_float(&gyro[0]);
   float64_t gy = sensor_value_to_float(&gyro[1]);
   float64_t gz = sensor_value_to_float(&gyro[2]);
+  // convert to rads?
   //
   // float64_t ax = &accel[0];
   // float ay = &accel[1];

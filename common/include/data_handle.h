@@ -87,6 +87,8 @@ void update_rx_accel_gyro_data(float accel_x, float accel_y, float accel_z,
                                float gyro_x, float gyro_y, float gyro_z);
 
 void read_rx_adc_data(struct rx_data_signal_t *data_destination);
+void read_rx_data(struct rx_data_container_t *data_destination);
+
 void read_pos_q_data(struct pos_q_t *data_destination);
 void update_pos_q_data(float q0, float q1, float q2, float q3, float x, float y,
                        float z);

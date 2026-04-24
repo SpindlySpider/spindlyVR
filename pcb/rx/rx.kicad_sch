@@ -7414,7 +7414,7 @@
 				)
 			)
 		)
-		(property "Value" "750"
+		(property "Value" "51"
 			(at 154.178 76.708 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9219,7 +9219,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "750"
+		(property "Value" "510"
 			(at 124.46 118.11 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10017,7 +10017,7 @@
 				)
 			)
 		)
-		(property "Value" "750"
+		(property "Value" "51"
 			(at 151.638 119.888 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10687,7 +10687,7 @@
 				)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "0.47uF"
 			(at 151.13 128.778 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11989,7 +11989,7 @@
 				)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "0.47uF"
 			(at 162.56 43.688 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13500,7 +13500,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "750"
+		(property "Value" "510"
 			(at 134.62 35.56 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13671,7 +13671,7 @@
 				)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "0.47uF"
 			(at 153.67 85.598 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13757,7 +13757,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "750"
+		(property "Value" "510"
 			(at 128.27 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14093,7 +14093,7 @@
 				)
 			)
 		)
-		(property "Value" "750"
+		(property "Value" "51"
 			(at 163.068 34.798 0)
 			(show_name no)
 			(do_not_autoplace no)

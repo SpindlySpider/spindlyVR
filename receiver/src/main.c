@@ -1,6 +1,6 @@
 #include "adc.h"
-#include "position.h"
 #include "orientation_handle.h"
+#include "position.h"
 #include "qmc5883p.h"
 #include "receive_data.h"
 #include "timer.h"
@@ -20,7 +20,8 @@ K_THREAD_STACK_DEFINE(receive_stack, THREAD_STACK_SIZE);
 K_THREAD_STACK_DEFINE(orientation_stack, THREAD_STACK_SIZE);
 K_THREAD_STACK_DEFINE(position_stack, THREAD_STACK_SIZE);
 
-struct k_thread adc_thread_data; struct k_thread transmit_thread_data;
+struct k_thread adc_thread_data;
+struct k_thread transmit_thread_data;
 struct k_thread orientation_thread_data;
 struct k_thread position_thread_data;
 
@@ -44,7 +45,6 @@ void start_precision_clock(void) {
 
 int main(void) {
 
-
   k_msleep(1000);
   printk("Starting...\n");
   k_msleep(1000);
@@ -56,6 +56,7 @@ int main(void) {
   k_msleep(1000);
   _err = setup_sensors();
   if (_err != 0) {
+    printk("failed to setup sensors:%d\n", _err);
     return _err;
   }
 
@@ -66,6 +67,7 @@ int main(void) {
   _err = setup_timers();
   if (_err != 0) {
     printk("failed to setup timer:%d\n", _err);
+    k_msleep(1000);
     return _err;
   }
 
@@ -100,8 +102,8 @@ int main(void) {
 
   k_thread_create(&position_thread_data, position_stack,
                   K_THREAD_STACK_SIZEOF(position_stack),
-                  start_positioning_thread, NULL, NULL, NULL, THREAD_PRIORITY, 0,
-                  K_NO_WAIT);
+                  start_positioning_thread, NULL, NULL, NULL, THREAD_PRIORITY,
+                  0, K_NO_WAIT);
   while (1) {
     k_sleep(K_FOREVER);
   }

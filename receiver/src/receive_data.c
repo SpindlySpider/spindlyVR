@@ -1,6 +1,7 @@
 #include "data_handle.h"
 #include "timer.h"
 #include "zephyr/kernel.h"
+#include "zephyr/sys/printk.h"
 #include <esb.h>
 #include <hal/nrf_timer.h>
 #include <helpers/nrfx_gppi.h>
@@ -17,7 +18,9 @@ extern struct k_sem radio_sync_sem;
 static uint32_t last_frame_pulse_timestamp = 0;
 
 void esb_rx_event_handler(struct esb_evt const *event) {
+  // printk("received radio event\n");
   if (event->evt_id == ESB_EVENT_RX_RECEIVED) {
+    // printk("received radio event\n");
     // get time stamp of when packet was received
     uint32_t current_timestamp =
         nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL1);
@@ -36,6 +39,7 @@ void esb_rx_event_handler(struct esb_evt const *event) {
       update_timestamp(last_frame_pulse_timestamp);
 
       last_frame_pulse_timestamp = current_timestamp;
+      // printk("given semaphore\n");
       k_sem_give(&radio_sync_sem);
       // printk("Phase %f arrived at microsecond: %u\n",
       // incoming_data.data.tx_phase, sync_timestamp);
