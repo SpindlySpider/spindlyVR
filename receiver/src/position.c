@@ -1,255 +1,418 @@
 #include "data_handle.h"
 #include "zephyr/kernel.h"
+#include "zephyr/sys/printk.h"
 #include <math.h>
-// using static K value here which will need to be adjusted for each Rx, this is
-// because 3*m*s/4*PI is constant and can be substituted for as a single value.
-//
-static float calibration_value = 86.5f;
-static struct data_container_t local_data_tx;
-static struct rx_data_container_t local_data_rx;
-static struct pos_q_t local_data_rx_q;
+#include <stdint.h>
 
 K_MSGQ_DEFINE(positioning_queue, sizeof(struct solver_packet_t), 10, 4);
+#define USE_ROTATION_B 0  // 0 = use A, 1 = use B
+#define DEBUG_ROTATIONS 0 // set to 0 once chosen
+#define DEBUG_TX_DISABLED 0
+
+#define FREEZE_RX_QUAT_FOR_TEST 0
+
+static struct data_container_t local_data_tx = {0};
+static struct data_container_t local_data_rx = {0};
 
 typedef struct {
-  float p;       // Position estimate
-  float v;       // Velocity estimate
-  float P[2][2]; // Covariance matrix (C0, C1, C2, C3 in the paper)
-} Kalman1D_t;
+  float x;
+  float y;
+  float z;
+} vec3_t;
 
-// Call this once before the while(1) loop
-void kalman_init(Kalman1D_t *kf, float init_p) {
-  kf->p = init_p;
-  kf->v = 0.0f;
-  kf->P[0][0] = 1.0f;
-  kf->P[0][1] = 0.0f;
-  kf->P[1][0] = 0.0f;
-  kf->P[1][1] = 1.0f;
-}
+typedef struct {
+  float w;
+  float x;
+  float y;
+  float z;
+} quat_t;
+// Empirical calibration value. Recalibrate this after raw tracking works.
+static float position_K = 88.46078431372548f;
 
-// The core filter based on Appendix A kinematics
-float kalman_update(Kalman1D_t *kf, float p_meas, float a_meas, float dt) {
-  // Tuning Parameters (v_u and v_p from the paper)
-  float noise_accel = 0.5f; // Process noise (Variance of acceleration)
-  float noise_pos = 0.01f;  // Measurement noise (Variance of magnetic position)
+// Simple display smoothing only. Safer than Kalman while debugging.
+static vec3_t pos_filt = {0.0f, 0.0f, 0.0f};
+static int pos_filt_initialized = 0;
 
-  // 1. Predict Next State [cite: 521]
-  // p_est = p_est + v_est*dt + 0.5*a_meas*dt^2
-  kf->p = kf->p + (kf->v * dt) + (0.5f * a_meas * dt * dt);
-  kf->v = kf->v + (a_meas * dt);
+static int have_prev_B = 0;
+static vec3_t prev_B = {0.0f, 0.0f, 0.0f};
 
-  // 2. Predict Covariance [cite: 523]
-  kf->P[0][0] += dt * (dt * kf->P[1][1] + kf->P[0][1] + kf->P[1][0]) +
-                 (noise_accel * noise_accel * 0.25f * dt * dt * dt * dt);
-  kf->P[0][1] +=
-      dt * kf->P[1][1] + (noise_accel * noise_accel * 0.5f * dt * dt * dt);
-  kf->P[1][0] +=
-      dt * kf->P[1][1] + (noise_accel * noise_accel * 0.5f * dt * dt * dt);
-  kf->P[1][1] += noise_accel * noise_accel * dt * dt;
+static bool have_frozen_q = false;
+static quat_t frozen_q_rx;
 
-  // 3. Calculate Kalman Gain [cite: 532]
-  float S = kf->P[0][0] + (noise_pos * noise_pos);
-  float K0 = kf->P[0][0] / S;
-  float K1 = kf->P[1][0] / S;
-
-  // 4. Update State Estimate [cite: 536]
-  float y = p_meas - kf->p; // Innovation (Measurement residual)
-  kf->p += K0 * y;
-  kf->v += K1 * y;
-
-  // 5. Update Covariance [cite: 539]
-  float P00_temp = kf->P[0][0];
-  float P01_temp = kf->P[0][1];
-  kf->P[0][0] -= K0 * P00_temp;
-  kf->P[0][1] -= K0 * P01_temp;
-  kf->P[1][0] -= K1 * P00_temp;
-  kf->P[1][1] -= K1 * P01_temp;
-
-  return kf->p;
-}
-
-// Helper function to rotate a vector by a quaternion
-void rotate_vector_by_quaternion(float q0, float q1, float q2, float q3,
-                                 float *bx, float *by, float *bz) {
-  float vx = *bx;
-  float vy = *by;
-  float vz = *bz;
-  float cx = q2 * vz - q3 * vy;
-  float cy = q3 * vx - q1 * vz;
-  float cz = q1 * vy - q2 * vx;
-  cx *= 2.0f;
-  cy *= 2.0f;
-  cz *= 2.0f;
-  *bx = vx + q0 * cx + (q2 * cz - q3 * cy);
-  *by = vy + q0 * cy + (q3 * cx - q1 * cz);
-  *bz = vz + q0 * cz + (q1 * cy - q2 * cx);
-}
-
-// Transforms the raw magnetic vector into the Transmitter's local coordinate
-// frame
-void align_to_tx_frame(float *bx, float *by, float *bz) {
-  // get quaterions data
-  read_tx_data(&local_data_tx);
-  read_pos_q_data(&local_data_rx);
-  // 1. Invert Tx Quaternion (Assuming unit quaternions, inverse = conjugate)
-  float inv_tx_w = local_data_tx.q0;
-  float inv_tx_x = -local_data_tx.q1;
-  float inv_tx_y = -local_data_tx.q2;
-  float inv_tx_z = -local_data_tx.q3;
-
-  // 2. Multiply Q_relative = (Inverse Q_tx) * Q_rx
-  float rel_w = inv_tx_w * local_data_rx.q0 - inv_tx_x * local_data_rx.q1 -
-                inv_tx_y * local_data_rx.q2 - inv_tx_z * local_data_rx.q3;
-  float rel_x = inv_tx_w * local_data_rx.q1 + inv_tx_x * local_data_rx.q0 +
-                inv_tx_y * local_data_rx.q3 - inv_tx_z * local_data_rx.q2;
-  float rel_y = inv_tx_w * local_data_rx.q2 - inv_tx_x * local_data_rx.q3 +
-                inv_tx_y * local_data_rx.q0 + inv_tx_z * local_data_rx.q1;
-  float rel_z = inv_tx_w * local_data_rx.q3 + inv_tx_x * local_data_rx.q2 -
-                inv_tx_y * local_data_rx.q1 + inv_tx_z * local_data_rx.q0;
-
-  // 3. Rotate the magnetic vector using the relative quaternion
-  rotate_vector_by_quaternion(rel_w, rel_x, rel_y, rel_z, bx, by, bz);
-}
-
-void calculate_pos(float *bx_val, float *by_val, float *bz_val) {
-  float bx = *bx_val;
-  float by = *by_val;
-  float bz = *bz_val;
-  // align_to_tx_frame(&bx, &by, &bz);
-  // cache XY magnitude
-  float bxy_mag = sqrtf(powf(bx, 2) + powf(by, 2)); // prevent divide by zero
-  if (bxy_mag < 0.0001f) {
-    bxy_mag = 0.0001f;
+static vec3_t stabilize_global_phase_flip(vec3_t B) {
+  /*
+   * Emergency front-volume demo assumption:
+   * We expect the valid front-hemisphere solution to have B.z positive.
+   * If your current demo volume is different, remove this block.
+   */
+  if (B.z < 0.0f) {
+    B.x = -B.x;
+    B.y = -B.y;
+    B.z = -B.z;
   }
 
-  float c1 = bz / bxy_mag;
-  float c2 = ((3.0f * c1) / 4.0f) + (sqrtf(9.0f * powf(c1, 2) + 8.0f) / 4.0f);
+  /*
+   * Reject global 180-degree phase flips.
+   * Consecutive magnetic vectors should not suddenly point in the exact
+   * opposite direction unless phase sync glitched.
+   */
+  if (have_prev_B) {
+    float dot = (B.x * prev_B.x) + (B.y * prev_B.y) + (B.z * prev_B.z);
 
-  float denominator = powf(1.0f + powf(c2, 2), 2.5f) * bxy_mag;
-  float x0 = cbrtf((calibration_value * c2) / denominator);
-
-  float zp = c2 * x0;
-
-  if (fabsf(bx) < 0.0001f) {
-    bx = (bx < 0.0f) ? -0.0001f : 0.0001f;
+    if (dot < 0.0f) {
+      B.x = -B.x;
+      B.y = -B.y;
+      B.z = -B.z;
+      printk("GLOBAL PHASE FLIP CORRECTED\n");
+    }
   }
 
-  float xp_mag = x0 / sqrtf(1.0f + powf((by / bx), 2));
-  float yp_mag = sqrtf(powf(x0, 2) - powf(xp_mag, 2));
+  prev_B = B;
+  have_prev_B = 1;
 
-  // 3. QUADRANT UNPACKING (The Magic Trick)
-  // sign(x) = sign(Bx) * sign(z)
-  // sign(y) = sign(By) * sign(z)
-
-  float xp_final = xp_mag;
-  float yp_final = yp_mag;
-
-  // We use standard C signbit logic. If (Bx is negative) XOR (Z is negative)...
-  if ((bx < 0.0f) != (zp < 0.0f)) {
-    xp_final = -xp_mag;
-  }
-
-  if ((by < 0.0f) != (zp < 0.0f)) {
-    yp_final = -yp_mag;
-  }
-
-  // Done! You now have true 3D spatial coordinates!
-  // will need to store these in data structure and transmit to pc dongle
-  *bx_val = xp_final;
-  *by_val = yp_final;
-  *bz_val = zp;
+  return B;
 }
 
-void get_global_linear_accel(float *ax_global, float *ay_global,
-                             float *az_global) {
-  // 2. Extract expected gravity vector from the Rx Quaternion
-  // Assuming q0 = W, q1 = X, q2 = Y, q3 = Z
-  float q0 = local_data_rx_q.q0;
-  float q1 = local_data_rx_q.q1;
-  float q2 = local_data_rx_q.q2;
-  float q3 = local_data_rx_q.q3;
+static vec3_t rx_coil_to_imu_frame(vec3_t b) {
+  /*
+   * Temporary identity mapping.
+   * Replace this with your measured/sign/permutation/alignment correction.
+   *
+   * Do NOT duplicate GAIN_X/Y/Z here if you already applied them in adc thread.
+   */
+  return (vec3_t){
+      .x = b.x,
+      .y = b.y,
+      .z = b.z,
+  };
+}
 
-  float gx = 2.0f * (q1 * q3 - q0 * q2);
-  float gy = 2.0f * (q0 * q1 + q2 * q3);
-  float gz = q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3;
+static vec3_t stabilize_for_front_demo(vec3_t B) {
+  /*
+   * Demo mode: force front hemisphere.
+   * This prevents the bad z≈0.16 branch.
+   */
+  B.z = fabsf(B.z);
+  return B;
+}
 
-  // 3. Subtract gravity to get Local Linear Acceleration
-  float lin_x = ax - (gx * 9.81f);
-  float lin_y = ay - (gy * 9.81f);
-  float lin_z = az - (gz * 9.81f);
+int solve_position(vec3_t B, vec3_t *pos) {
+  float bx = B.x;
+  float by = B.y;
+  float bz = B.z;
 
-  // 4. Align the Local Linear Acceleration to the Transmitter's Global Frame
-  // First, calculate the relative quaternion (Inverse Tx * Rx)
-  float inv_tx_w = local_data_tx.q0;
-  float inv_tx_x = -local_data_tx.q1;
-  float inv_tx_y = -local_data_tx.q2;
-  float inv_tx_z = -local_data_tx.q3;
+  float bxy = sqrtf((bx * bx) + (by * by));
 
-  float rel_w = inv_tx_w * q0 - inv_tx_x * q1 - inv_tx_y * q2 - inv_tx_z * q3;
-  float rel_x = inv_tx_w * q1 + inv_tx_x * q0 + inv_tx_y * q3 - inv_tx_z * q2;
-  float rel_y = inv_tx_w * q2 - inv_tx_x * q3 + inv_tx_y * q0 + inv_tx_z * q1;
-  float rel_z = inv_tx_w * q3 + inv_tx_x * q2 - inv_tx_y * q1 + inv_tx_z * q0;
+  // The closed-form solver is unstable near the Tx axis.
+  if (bxy < 1e-6f) {
+    return -1;
+  }
 
-  // Rotate the linear acceleration vector using the relative quaternion
-  rotate_vector_by_quaternion(rel_w, rel_x, rel_y, rel_z, &lin_x, &lin_y,
-                              &lin_z);
+  float c1 = bz / bxy;
+  float c2 = ((3.0f * c1) + sqrtf((9.0f * c1 * c1) + 8.0f)) / 4.0f;
 
-  // Output the fully corrected, global-aligned accelerations
-  *ax_global = lin_x;
-  *ay_global = lin_y;
-  *az_global = lin_z;
+  if (!isfinite(c2) || c2 <= 0.0f) {
+    return -2;
+  }
+
+  float denom = powf(1.0f + (c2 * c2), 2.5f) * bxy;
+
+  if (!isfinite(denom) || fabsf(denom) < 1e-12f) {
+    return -3;
+  }
+
+  float rho_cubed = (position_K * c2) / denom;
+
+  if (!isfinite(rho_cubed) || rho_cubed <= 0.0f) {
+    return -4;
+  }
+
+  float rho = cbrtf(rho_cubed);
+
+  pos->x = rho * bx / bxy;
+  pos->y = rho * by / bxy;
+  pos->z = c2 * rho;
+
+  if (!isfinite(pos->x) || !isfinite(pos->y) || !isfinite(pos->z)) {
+    return -5;
+  }
+
+  return 0;
+}
+
+static quat_t quat_conj(quat_t q) {
+  return (quat_t){
+      .w = q.w,
+      .x = -q.x,
+      .y = -q.y,
+      .z = -q.z,
+  };
+}
+
+static quat_t quat_mul(quat_t a, quat_t b) {
+  return (quat_t){
+      .w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+      .x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+      .y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+      .z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+  };
+}
+
+static quat_t quat_normalize(quat_t q) {
+  float n = sqrtf(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+
+  if (n < 1e-6f) {
+    return (quat_t){.w = 1.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f};
+  }
+
+  float inv = 1.0f / n;
+  return (quat_t){
+      .w = q.w * inv,
+      .x = q.x * inv,
+      .y = q.y * inv,
+      .z = q.z * inv,
+  };
+}
+
+static vec3_t quat_rotate_vec(quat_t q, vec3_t v) {
+  q = quat_normalize(q);
+
+  quat_t p = {
+      .w = 0.0f,
+      .x = v.x,
+      .y = v.y,
+      .z = v.z,
+  };
+
+  quat_t r = quat_mul(quat_mul(q, p), quat_conj(q));
+
+  return (vec3_t){
+      .x = r.x,
+      .y = r.y,
+      .z = r.z,
+  };
+}
+
+static vec3_t smooth_position(vec3_t raw) {
+  const float alpha = 0.15f;
+
+  if (!pos_filt_initialized) {
+    pos_filt = raw;
+    pos_filt_initialized = 1;
+    return pos_filt;
+  }
+
+  pos_filt.x = (1.0f - alpha) * pos_filt.x + alpha * raw.x;
+  pos_filt.y = (1.0f - alpha) * pos_filt.y + alpha * raw.y;
+  pos_filt.z = (1.0f - alpha) * pos_filt.z + alpha * raw.z;
+
+  return pos_filt;
+}
+
+static void print_solve_candidate(const char *name, vec3_t B) {
+  vec3_t p;
+  int err = solve_position(B, &p);
+
+  float mag = sqrtf(B.x * B.x + B.y * B.y + B.z * B.z);
+  float bxy = sqrtf(B.x * B.x + B.y * B.y);
+
+  if (err == 0) {
+    printk("%s B %.2f %.2f %.2f | mag %.2f | bxy %.2f | p %.3f %.3f %.3f\n",
+           name, B.x, B.y, B.z, mag, bxy, p.x, p.y, p.z);
+  } else {
+    printk("%s FAIL err=%d | B %.2f %.2f %.2f | mag %.2f | bxy %.2f\n", name,
+           err, B.x, B.y, B.z, mag, bxy);
+  }
 }
 
 void start_positioning_thread(void *, void *, void *) {
   struct solver_packet_t incoming_data;
-  // 1. Initialize the 3 independent Kalman filters
-  Kalman1D_t kf_x, kf_y, kf_z;
-  kalman_init(&kf_x, 0.0f);
-  kalman_init(&kf_y, 0.0f);
-  kalman_init(&kf_z, 0.0f);
 
-  // 1. Capture the starting time
-  uint32_t last_time = k_uptime_get_32();
+  static const vec3_t rx_body_to_coil = {
+      .x = -0.045f, // -4.5 cm along RX body X
+      .y = 0.0f,
+      .z = 0.008f, // +0.8 cm along RX body Z
+  };
+
   while (1) {
     k_msgq_get(&positioning_queue, &incoming_data, K_FOREVER);
 
-    uint32_t current_time = k_uptime_get_32();
-    calculate_pos(&incoming_data.bx, &incoming_data.by, &incoming_data.bz);
-    // 2. CALCULATE THE EXACT TRUE DT
+    vec3_t b_rx_coil = {
+        .x = incoming_data.bx,
+        .y = incoming_data.by,
+        .z = incoming_data.bz,
+    };
 
-    // Get the gravity-canceled, frame-aligned linear acceleration
-    float a_global_x, a_global_y, a_global_z;
-    get_global_linear_accel(&a_global_x, &a_global_y, &a_global_z);
+    /*
+     * RX quaternion comes from this board's IMU.
+     * TX quaternion is already passed through the solver packet.
+     */
+    read_data(&local_data_rx);
 
-    float dt =
-        (float)(current_time - last_time) / 1000.0f; // Convert ms to seconds
-    last_time = current_time;
+    quat_t q_tx_frame = {
+        .w = incoming_data.q0,
+        .x = incoming_data.q1,
+        .y = incoming_data.q2,
+        .z = incoming_data.q3,
+    };
 
-    // 3. Safety Clamp (If the thread stalled for >50ms, ignore the velocity
-    // spike)
-    if (dt > 0.050f) {
-      dt = 0.0025f;
+    quat_t q_rx_frame = {
+        .w = local_data_rx.q0,
+        .x = local_data_rx.q1,
+        .y = local_data_rx.q2,
+        .z = local_data_rx.q3,
+    };
+
+    q_tx_frame = quat_normalize(q_tx_frame);
+    q_rx_frame = quat_normalize(q_rx_frame);
+
+#if FREEZE_RX_QUAT_FOR_TEST
+    if (!have_frozen_q) {
+      frozen_q_rx = q_rx_frame;
+      have_frozen_q = true;
+    }
+    q_rx_frame = frozen_q_rx;
+#endif
+
+    /*
+     * Convert magnetic vector from RX coil wiring frame into RX IMU/body frame.
+     */
+    vec3_t b_rx_body = rx_coil_to_imu_frame(b_rx_coil);
+
+    float b_rx_mag =
+        sqrtf(b_rx_body.x * b_rx_body.x + b_rx_body.y * b_rx_body.y +
+              b_rx_body.z * b_rx_body.z);
+
+#if DEBUG_TX_DISABLED
+    printk("RXDBG Brx %.3f %.3f %.3f | |Brx| %.3f | "
+           "q_rx %.4f %.4f %.4f %.4f | "
+           "q_tx %.4f %.4f %.4f %.4f\n",
+           b_rx_body.x, b_rx_body.y, b_rx_body.z, b_rx_mag, q_rx_frame.w,
+           q_rx_frame.x, q_rx_frame.y, q_rx_frame.z, q_tx_frame.w, q_tx_frame.x,
+           q_tx_frame.y, q_tx_frame.z);
+
+    continue;
+#endif
+
+    if (b_rx_mag < 20.0f || b_rx_mag > 350.0f || !isfinite(b_rx_mag) ||
+        !isfinite(b_rx_body.x) || !isfinite(b_rx_body.y) ||
+        !isfinite(b_rx_body.z)) {
+      printk("BAD_BRX Brx %.3f %.3f %.3f | |Brx| %.3f\n", b_rx_body.x,
+             b_rx_body.y, b_rx_body.z, b_rx_mag);
+      continue;
     }
 
-    // get accell data
-    read_rx_data(&local_data_rx);
-    // 2. Filter the raw data independently
-    float smooth_x = kalman_update(&kf_x, incoming_data.bx, 0.0f,
-                                   dt); // Replace 0.0f with IMU accel_x later
-    float smooth_y = kalman_update(&kf_y, incoming_data.by, 0.0f,
-                                   dt); // Replace 0.0f with IMU accel_y later
-    float smooth_z = kalman_update(&kf_z, incoming_data.bz, 0.0f,
-                                   dt); // Replace 0.0f with IMU accel_z later
+    /*
+     * Candidate A:
+     * RX body frame -> TX body frame
+     * This is the one I would use first based on your latest logs.
+     */
+    quat_t q_a = quat_mul(quat_conj(q_tx_frame), q_rx_frame);
+    vec3_t b_a = quat_rotate_vec(q_a, b_rx_body);
 
-    // float smooth_x = kalman_update(&kf_x, incoming_data.bx, 0.0f, dt) *
-    // 1000.0f; float smooth_y = kalman_update(&kf_y, incoming_data.by, 0.0f,
-    // dt) * 1000.0f; float smooth_z = kalman_update(&kf_z, incoming_data.bz,
-    // 0.0f, dt) * 1000.0f;
+    /*
+     * Candidate B:
+     * Alternative convention. Keep only for debugging.
+     */
+    quat_t q_b = quat_mul(q_tx_frame, quat_conj(q_rx_frame));
+    vec3_t b_b = quat_rotate_vec(q_b, b_rx_body);
 
-    printk("Final Position: X: %.3f, Y: %.3f, Z: %.3f\n", smooth_x, smooth_y,
-           smooth_z);
+#if DEBUG_ROTATIONS
+    float mag_a = sqrtf(b_a.x * b_a.x + b_a.y * b_a.y + b_a.z * b_a.z);
+    float mag_b = sqrtf(b_b.x * b_b.x + b_b.y * b_b.y + b_b.z * b_b.z);
 
-    // printk("Final Position: X: %.3f, Y: %.3f, Z: %.3f\n", incoming_data.bx,
-    // incoming_data.by, incoming_data.bz);
+    printk("YAWDBG Brx %.2f %.2f %.2f | "
+           "A %.2f %.2f %.2f | |A| %.2f | "
+           "B %.2f %.2f %.2f | |B| %.2f\n",
+           b_rx_body.x, b_rx_body.y, b_rx_body.z, b_a.x, b_a.y, b_a.z, mag_a,
+           b_b.x, b_b.y, b_b.z, mag_b);
+
+    continue;
+#endif
+
+    quat_t q_rx_to_tx;
+    vec3_t b_tx;
+
+#if USE_ROTATION_B
+    q_rx_to_tx = q_b;
+    b_tx = b_b;
+#else
+    q_rx_to_tx = q_a;
+    b_tx = b_a;
+#endif
+
+    // printk("DATA,%.6f,%.6f,%.6f,"
+    //        "%.6f,%.6f,%.6f,%.6f,"
+    //        "%.6f,%.6f,%.6f,%.6f\n",
+    //        b_rx_coil.x, b_rx_coil.y, b_rx_coil.z, q_tx_frame.w,
+    //        q_tx_frame.x, q_tx_frame.y, q_tx_frame.z, q_rx_frame.w,
+    //        q_rx_frame.x, q_rx_frame.y, q_rx_frame.z);
+    //
+    //
+
+    // printk("DATA,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n", b_rx_coil.x,
+    //        b_rx_coil.y, b_rx_coil.z, q_rx_frame.w, q_rx_frame.x,
+    //        q_rx_frame.y, q_rx_frame.z);
+
+    /*
+     * Rotate RX body-to-coil offset into TX frame.
+     * This gives the coil offset expressed in the same frame as the solved
+     * position.
+     */
+    vec3_t coil_offset_tx = quat_rotate_vec(q_rx_to_tx, rx_body_to_coil);
+
+    /*
+     * Solve position of the RX coil center.
+     */
+    vec3_t pos_coil;
+    int err = solve_position(b_tx, &pos_coil);
+
+    b_rx_mag = sqrtf(b_rx_body.x * b_rx_body.x + b_rx_body.y * b_rx_body.y +
+                     b_rx_body.z * b_rx_body.z);
+
+    float b_tx_mag = sqrtf(b_tx.x * b_tx.x + b_tx.y * b_tx.y + b_tx.z * b_tx.z);
+
+    float bxy = sqrtf(b_tx.x * b_tx.x + b_tx.y * b_tx.y);
+
+    if (err != 0) {
+      printk("SOLVE_FAIL err=%d | Brx %.3f %.3f %.3f | Btx %.3f %.3f %.3f | "
+             "bxy %.3f\n",
+             err, b_rx_body.x, b_rx_body.y, b_rx_body.z, b_tx.x, b_tx.y, b_tx.z,
+             bxy);
+      continue;
+    }
+
+    /*
+     * Convert coil-center position to RX body/IMU-origin position.
+     */
+    vec3_t pos_body_raw = {
+        .x = pos_coil.x - coil_offset_tx.x,
+        .y = pos_coil.y - coil_offset_tx.y,
+        .z = pos_coil.z - coil_offset_tx.z,
+    };
+
+    /*
+     * Smooth body position, not coil position.
+     */
+    vec3_t pos_body = smooth_position(pos_body_raw);
+
+    // printk(
+    //     "coil %.3f %.3f %.3f | off %.3f %.3f %.3f | body_raw %.3f %.3f
+    //     %.3f\n", pos_coil.x, pos_coil.y, pos_coil.z, coil_offset_tx.x,
+    //     coil_offset_tx.y, coil_offset_tx.z, pos_body_raw.x, pos_body_raw.y,
+    //     pos_body_raw.z);
+
+    printk("TEST Brx %.2f %.2f %.2f | |Brx| %.2f | "
+           "Btx %.2f %.2f %.2f | |Btx| %.2f | "
+           "coil %.3f %.3f %.3f\n",
+           b_rx_body.x, b_rx_body.y, b_rx_body.z, b_rx_mag, b_tx.x, b_tx.y,
+           b_tx.z, b_tx_mag, pos_coil.x, pos_coil.y, pos_coil.z);
+
+    // printk("Btx %.3f %.3f %.3f | mag %.3f %.3f | coil %.3f %.3f %.3f | off
+    // "
+    //        "%.3f %.3f %.3f | body %.3f %.3f %.3f\n",
+    //        b_tx.x, b_tx.y, b_tx.z, b_rx_mag, b_tx_mag, pos_coil.x,
+    //        pos_coil.y, pos_coil.z, coil_offset_tx.x, coil_offset_tx.y,
+    //        coil_offset_tx.z, pos_body.x, pos_body.y, pos_body.z);
   }
 }

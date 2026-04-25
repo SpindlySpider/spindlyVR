@@ -15,12 +15,24 @@ struct cached_sin_cos_t {
   double cosine[CONFIG_TX_SAMPLE_NUMBER];
 };
 
+struct timestamp_data_container_t {
+  // Quaternion orientation
+  float q0, q1, q2, q3;
+  // transmitted to Rx so it knows its signed magnetic field
+  float tx_amp, tx_phase;
+
+  uint32_t packet_seq; // sequence number of this radio packet
+  uint32_t timestamp;
+};
+
 // add packed to make sure compiler does not add padding
 struct data_container_t {
   // Quaternion orientation
   float q0, q1, q2, q3;
   // transmitted to Rx so it knows its signed magnetic field
   float tx_amp, tx_phase;
+
+  uint32_t packet_seq; // sequence number of this radio packet
 };
 
 // used for quick conversion of data to bytes
@@ -39,7 +51,8 @@ void update_orientation_data(float q0, float q1, float q2, float q3);
 
 void update_signal_data(float amp, float phase, uint32_t timestamp);
 
-void read_adc_data(struct data_container_t *data_destination, uint32_t *timestamp_dest);
+void read_adc_data(struct data_container_t *data_destination,
+                   uint32_t *timestamp_dest);
 
 void read_data(struct data_container_t *data_destination);
 
@@ -49,9 +62,10 @@ int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c);
 
 // used to pass measured x,y,z from coil to positioning thread
 struct solver_packet_t {
-    float bx;
-    float by;
-    float bz;
+  float bx;
+  float by;
+  float bz;
+  float q0, q1, q2, q3;
 };
 
 struct rx_data_container_t {
@@ -80,11 +94,24 @@ struct pos_q_t {
   float q0, q1, q2, q3;
 };
 
+struct rx_sync_ref_t {
+  uint32_t seq;
+  uint32_t timestamp;
+  float tx_phase;
+  float q0, q1, q2, q3;
+};
+
 void read_tx_data(struct data_container_t *data_destination);
 void update_tx_data(float q0, float q1, float q2, float q3, float phase);
 void update_rx_adc_data(float amp, float phase, char *axis);
 void update_rx_accel_gyro_data(float accel_x, float accel_y, float accel_z,
                                float gyro_x, float gyro_y, float gyro_z);
+
+void read_pos_q_data(struct pos_q_t *data_destination);
+
+void read_tx_data_timestamp(struct timestamp_data_container_t *data_dest);
+void update_tx_data_timestamp(float q0, float q1, float q2, float q3,
+                              float phase, uint32_t timestamp);
 
 void read_rx_adc_data(struct rx_data_signal_t *data_destination);
 void read_rx_data(struct rx_data_container_t *data_destination);

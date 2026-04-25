@@ -1,0 +1,249 @@
+#include "data_handle.h"
+#include "zephyr/kernel.h"
+#include <math.h>
+#include <stdint.h>
+
+K_MSGQ_DEFINE(positioning_queue, sizeof(struct solver_packet_t), 10, 4);
+
+static struct data_container_t local_data_tx = {0};
+static struct pos_q_t local_data_rx = {0};
+
+typedef struct {
+  float x;
+  float y;
+  float z;
+} vec3_t;
+
+typedef struct {
+  float w;
+  float x;
+  float y;
+  float z;
+} quat_t;
+// Empirical calibration value. Recalibrate this after raw tracking works.
+static float position_K = 86.5f;
+
+// Simple display smoothing only. Safer than Kalman while debugging.
+static vec3_t pos_filt = {0.0f, 0.0f, 0.0f};
+static int pos_filt_initialized = 0;
+
+static int have_prev_B = 0;
+static vec3_t prev_B = {0.0f, 0.0f, 0.0f};
+
+static vec3_t stabilize_global_phase_flip(vec3_t B) {
+  /*
+   * Emergency front-volume demo assumption:
+   * We expect the valid front-hemisphere solution to have B.z positive.
+   * If your current demo volume is different, remove this block.
+   */
+  if (B.z < 0.0f) {
+    B.x = -B.x;
+    B.y = -B.y;
+    B.z = -B.z;
+  }
+
+  /*
+   * Reject global 180-degree phase flips.
+   * Consecutive magnetic vectors should not suddenly point in the exact
+   * opposite direction unless phase sync glitched.
+   */
+  if (have_prev_B) {
+    float dot = (B.x * prev_B.x) + (B.y * prev_B.y) + (B.z * prev_B.z);
+
+    if (dot < 0.0f) {
+      B.x = -B.x;
+      B.y = -B.y;
+      B.z = -B.z;
+      printk("GLOBAL PHASE FLIP CORRECTED\n");
+    }
+  }
+
+  prev_B = B;
+  have_prev_B = 1;
+
+  return B;
+}
+
+static vec3_t stabilize_for_front_demo(vec3_t B) {
+  /*
+   * Demo mode: force front hemisphere.
+   * This prevents the bad z≈0.16 branch.
+   */
+  B.z = fabsf(B.z);
+  return B;
+}
+
+int solve_position(vec3_t B, vec3_t *pos) {
+  float bx = B.x;
+  float by = B.y;
+  float bz = B.z;
+
+  float bxy = sqrtf((bx * bx) + (by * by));
+
+  // The closed-form solver is unstable near the Tx axis.
+  if (bxy < 1e-6f) {
+    return -1;
+  }
+
+  float c1 = bz / bxy;
+  float c2 = ((3.0f * c1) + sqrtf((9.0f * c1 * c1) + 8.0f)) / 4.0f;
+
+  if (!isfinite(c2) || c2 <= 0.0f) {
+    return -2;
+  }
+
+  float denom = powf(1.0f + (c2 * c2), 2.5f) * bxy;
+
+  if (!isfinite(denom) || fabsf(denom) < 1e-12f) {
+    return -3;
+  }
+
+  float rho_cubed = (position_K * c2) / denom;
+
+  if (!isfinite(rho_cubed) || rho_cubed <= 0.0f) {
+    return -4;
+  }
+
+  float rho = cbrtf(rho_cubed);
+
+  pos->x = rho * bx / bxy;
+  pos->y = rho * by / bxy;
+  pos->z = c2 * rho;
+
+  if (!isfinite(pos->x) || !isfinite(pos->y) || !isfinite(pos->z)) {
+    return -5;
+  }
+
+  return 0;
+}
+
+static quat_t quat_conj(quat_t q) {
+  return (quat_t){
+      .w = q.w,
+      .x = -q.x,
+      .y = -q.y,
+      .z = -q.z,
+  };
+}
+
+static quat_t quat_mul(quat_t a, quat_t b) {
+  return (quat_t){
+      .w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+      .x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+      .y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+      .z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+  };
+}
+
+static quat_t quat_normalize(quat_t q) {
+  float n = sqrtf(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+
+  if (n < 1e-6f) {
+    return (quat_t){.w = 1.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f};
+  }
+
+  float inv = 1.0f / n;
+  return (quat_t){
+      .w = q.w * inv,
+      .x = q.x * inv,
+      .y = q.y * inv,
+      .z = q.z * inv,
+  };
+}
+
+static vec3_t quat_rotate_vec(quat_t q, vec3_t v) {
+  q = quat_normalize(q);
+
+  quat_t p = {
+      .w = 0.0f,
+      .x = v.x,
+      .y = v.y,
+      .z = v.z,
+  };
+
+  quat_t r = quat_mul(quat_mul(q, p), quat_conj(q));
+
+  return (vec3_t){
+      .x = r.x,
+      .y = r.y,
+      .z = r.z,
+  };
+}
+
+static vec3_t smooth_position(vec3_t raw) {
+  const float alpha = 0.15f;
+
+  if (!pos_filt_initialized) {
+    pos_filt = raw;
+    pos_filt_initialized = 1;
+    return pos_filt;
+  }
+
+  pos_filt.x = (1.0f - alpha) * pos_filt.x + alpha * raw.x;
+  pos_filt.y = (1.0f - alpha) * pos_filt.y + alpha * raw.y;
+  pos_filt.z = (1.0f - alpha) * pos_filt.z + alpha * raw.z;
+
+  return pos_filt;
+}
+
+void start_positioning_thread(void *, void *, void *) {
+  struct solver_packet_t incoming_data;
+
+  while (1) {
+    k_msgq_get(&positioning_queue, &incoming_data, K_FOREVER);
+
+    vec3_t b_rx = {
+        .x = incoming_data.bx,
+        .y = incoming_data.by,
+        .z = incoming_data.bz,
+    };
+
+    read_tx_data(&local_data_tx);
+    read_pos_q_data(&local_data_rx);
+
+    // get and rotate quaterions
+    // rotate quaterions
+    quat_t q_tx_frame = {.w = local_data_tx.q0,
+                         .x = local_data_tx.q1,
+                         .y = local_data_tx.q2,
+                         .z = local_data_tx.q3};
+
+    quat_t q_rx_frame = {.w = local_data_rx.q0,
+                         .x = local_data_rx.q1,
+                         .y = local_data_rx.q2,
+                         .z = local_data_rx.q3};
+
+    quat_t q_rx_to_tx = quat_mul(quat_conj(q_tx_frame), q_rx_frame);
+
+    vec3_t b_tx = quat_rotate_vec(q_rx_to_tx, b_rx);
+
+    b_rx = stabilize_global_phase_flip(b_rx);
+    // B = stabilize_for_front_demo(B);
+    b_rx = {
+      .x = b_tx.x,
+      .y = b_tx.y,
+      .z = b_tx.z,
+    }
+
+    vec3_t pos_raw;
+    int err = solve_position(b_rx, &pos_raw);
+
+    float bxy = sqrtf((b_rx.x * b_rx.x) + (b_rx.y * b_rx.y));
+
+    if (err != 0) {
+      printk("SOLVE_FAIL err=%d | B %.3f %.3f %.3f | bxy %.3f\n", err, b_rx.x, b_rx.y,
+             b_rx.z, bxy);
+      continue;
+    }
+    printk("raw solved values: X: %.3f | Y: %.3f | Z %.3f\n", pos_raw.x,
+           pos_raw.y, pos_raw.z);
+
+    vec3_t pos = smooth_position(pos_raw);
+
+    // printk("B %.3f %.3f %.3f | bxy %.3f | raw %.3f %.3f %.3f | filt %.3f %.3f
+    // "
+    //        "%.3f\n",
+    //        B.x, B.y, B.z, bxy, pos_raw.x, pos_raw.y, pos_raw.z, pos.x, pos.y,
+    //        pos.z);
+  }
+}

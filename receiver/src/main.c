@@ -71,12 +71,12 @@ int main(void) {
     return _err;
   }
 
-  printk("Setting up receiver gppio\n");
-  k_msleep(1000);
-  _err = setup_rx_gppi();
-  if (_err != 0) {
-    return _err;
-  }
+  // printk("Setting up receiver gppio\n");
+  // k_msleep(1000);
+  // _err = setup_rx_gppi();
+  // if (_err != 0) {
+  //   return _err;
+  // }
 
   // set this up last, or atleast before ADC so timer is available
   printk("Setting up reciever\n");

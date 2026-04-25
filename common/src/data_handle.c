@@ -25,7 +25,10 @@ K_MUTEX_DEFINE(rx_mutex);
 K_MUTEX_DEFINE(rx_signal_mutex);
 K_MUTEX_DEFINE(pos_mutex);
 K_MUTEX_DEFINE(timestamp_mutex);
+K_MUTEX_DEFINE(timestamp_data_mutex);
 K_MUTEX_DEFINE(adc_timestamp_mutex);
+
+K_MSGQ_DEFINE(rx_sync_msgq, sizeof(struct rx_sync_ref_t), 4, 4);
 
 // store phase and quaternion of TX
 struct data_container_t tx_data_container = {0};
@@ -37,6 +40,7 @@ struct pos_q_t pos_orientation_container = {0};
 struct rx_data_signal_t rx_data_signal_container = {.gain = NRF_SAADC_GAIN1_6};
 // store timestamp to determine how much to fast forward ADC reading times
 static uint32_t phase_timestamp;
+static struct timestamp_data_container_t local_timestamp_data = {0};
 
 #endif
 
@@ -148,6 +152,26 @@ void update_tx_data(float q0, float q1, float q2, float q3, float phase) {
 
   // release lock
   k_mutex_unlock(&tx_mutex);
+}
+
+void update_tx_data_timestamp(float q0, float q1, float q2, float q3, float phase, uint32_t timestamp) {
+  k_mutex_lock(&timestamp_data_mutex, K_FOREVER);
+  // Update struct
+  local_timestamp_data.q0 = q0;
+  local_timestamp_data.q1 = q1;
+  local_timestamp_data.q2 = q2;
+  local_timestamp_data.q3 = q3;
+  local_timestamp_data.tx_phase = phase;
+  local_timestamp_data.timestamp = timestamp;
+
+  k_mutex_unlock(&timestamp_data_mutex);
+}
+
+void read_tx_data_timestamp(struct timestamp_data_container_t *data_dest) {
+  // read timestamp and data at the sametime
+  k_mutex_lock(&timestamp_data_mutex, K_FOREVER);
+  *data_dest = local_timestamp_data;
+  k_mutex_unlock(&timestamp_data_mutex);
 }
 
 // --- RX container manipulation
