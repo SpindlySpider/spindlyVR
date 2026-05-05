@@ -48,6 +48,7 @@ void esb_rx_event_handler(struct esb_evt const *event) {
 
     uint32_t packet_seq = incoming_data.data.packet_seq;
 
+    // check they are consecutive
     bool consecutive =
         have_prev_packet && ((uint32_t)(prev_packet_seq + 1) == packet_seq);
 
@@ -75,11 +76,15 @@ void esb_rx_event_handler(struct esb_evt const *event) {
     /*
      * If ADC is behind, drop old sync events.
      * Better to use the newest coherent sync than process stale ones.
+     * seems like this always removes the packets?
+     * if its using old ones would probbaly be better to have a timer condition on ADC to chhose wether to use them or not
      */
     if (k_msgq_put(&rx_sync_msgq, &sync, K_NO_WAIT) != 0) {
       struct rx_sync_ref_t dummy;
+      // removes old packets from queue
       while (k_msgq_get(&rx_sync_msgq, &dummy, K_NO_WAIT) == 0) {
       }
+      // puts new packets into queue
       k_msgq_put(&rx_sync_msgq, &sync, K_NO_WAIT);
     }
 

@@ -43,8 +43,6 @@
 
 extern struct k_msgq rx_sync_msgq;
 
-static float ticks_per_period = TIMER_FREQ_HZ / TX_FREQ_HZ;
-
 typedef struct {
   float phase_offset_rad; // Calibrate this per axis
   float min_amp;          // Ignore sign updates below this amplitude
@@ -67,6 +65,11 @@ static uint32_t adc_timestamp_x;
 static uint32_t adc_timestamp_y;
 static uint32_t adc_timestamp_z;
 static uint32_t dummy_ts;
+
+static float synced_phase;
+static float raw_phase;
+static float I;
+static float Q;
 
 // this variable is a pointer to the full buffer. static uint32_t current_buffer
 // = 0;
@@ -173,41 +176,6 @@ static void saadc_handler(nrfx_saadc_evt_t const *p_event) {
 }
 
 static uint32_t last_sync_seq = 0;
-
-static void debug_tx_sync_consistency(uint32_t seq, uint32_t ts, float phase) {
-  if (!have_last_sync_dbg) {
-    have_last_sync_dbg = true;
-    last_sync_seq = seq;
-    last_sync_ts = ts;
-    last_sync_phase = phase;
-    return;
-  }
-
-  if (seq == last_sync_seq) {
-    printk("SYNCDBG duplicate seq=%u ignored\n", seq);
-    return;
-  }
-
-  uint32_t dt = ts - last_sync_ts;
-  float adv = phase_advance_from_ticks(dt);
-
-  float pred_plus = wrap_to_pi(last_sync_phase + adv);
-  float pred_minus = wrap_to_pi(last_sync_phase - adv);
-
-  float err_plus = wrap_to_pi(phase - pred_plus);
-  float err_minus = wrap_to_pi(phase - pred_minus);
-
-  // printk("SYNCDBG seq=%u prev_seq=%u dt=%u dt_mod=%u "
-  //        "prev=%.3f now=%.3f "
-  //        "plus_err=%.3f plus_cos=%.3f "
-  //        "minus_err=%.3f minus_cos=%.3f\n",
-  //        seq, last_sync_seq, dt, dt % 500, last_sync_phase, phase, err_plus,
-  //        cosf(err_plus), err_minus, cosf(err_minus));
-
-  last_sync_seq = seq;
-  last_sync_ts = ts;
-  last_sync_phase = phase;
-}
 
 int config_saadc() {
   int err;
@@ -331,31 +299,21 @@ static float sign_axis_from_phase(const char *name, float amp,
                                   phase_axis_cal_t *cal) {
   float amp_abs = fabsf(amp);
 
-  /*
-   * Below this, phase is meaningless.
-   * Your TX-off noise is around 1-12, so start with 20 or 25.
-   */
-  if (amp_abs < cal->min_amp) {
-#if DEBUG_GAIN_CAL
-    printk("PHDBG %s LOW amp=%.3f min=%.3f -> signed=0\n", name, amp_abs,
-           cal->min_amp);
-#endif
-    return 0.0f;
-  }
-
   uint32_t dt_ticks = axis_timestamp - sync_timestamp;
 
   float expected_phase =
       wrap_to_pi(tx_phase_at_sync + phase_advance_from_ticks(dt_ticks) +
                  cal->phase_offset_rad);
 
+  if (strcmp(name, "x") == 0) {
+    synced_phase = expected_phase;
+  }
+
   float diff = wrap_to_pi(measured_phase - expected_phase);
+  // finding the difference between the expected phase and the measurement
+
   float c = cosf(diff);
 
-  /*
-   * Use phase only for sign.
-   * Do not multiply by cos, because that creates fake gain mismatch.
-   */
   float sign = cal->last_sign;
 
   if (fabsf(c) > cal->deadband_cos) {
@@ -365,19 +323,14 @@ static float sign_axis_from_phase(const char *name, float amp,
 
   float signed_amp = amp_abs * sign;
 
-#if DEBUG_GAIN_CAL
-  printk("PHDBG %s amp=%.3f dt_mod=%u meas=%.3f exp=%.3f diff=%.3f "
-         "cos=%.3f sign=%.0f signed=%.3f\n",
-         name, amp_abs, dt_ticks % 500, measured_phase, expected_phase, diff, c,
-         sign, signed_amp);
-#endif
-
   return signed_amp;
 }
+
 void phase_sync_signs(void) {
   float tx_phase = local_tx_data.tx_phase;
   uint32_t sync_time = local_timestamp;
 
+  // read timestamp and fast forward phase
   local_signal_data.adc_x_amp = sign_axis_from_phase(
       "x", local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
       adc_timestamp_x, sync_time, tx_phase, &phase_x);
@@ -385,6 +338,10 @@ void phase_sync_signs(void) {
   local_signal_data.adc_y_amp = sign_axis_from_phase(
       "y", local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
       adc_timestamp_y, sync_time, tx_phase, &phase_y);
+
+  // ISSUE: this is the only one needed, the paper says that only one phase sign
+  // is needed and im assuming its the one parallel to the transmitter can
+  // implement a dynamic picker to ensure that the signal is always being picked
 
   local_signal_data.adc_z_amp = sign_axis_from_phase(
       "z", local_signal_data.adc_z_amp, local_signal_data.adc_z_phase,
@@ -408,20 +365,14 @@ int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
   float phase = 0.0f;
   int32_t dc_sum = 0;
 
-  const int start = ADC_DISCARD_SAMPLES;
-  const int n = CONFIG_RX_SAMPLE_NUMBER - ADC_DISCARD_SAMPLES;
-
-  if (n <= 0) {
-    return -1;
-  }
-
-  for (int i = start; i < CONFIG_RX_SAMPLE_NUMBER; i++) {
+  for (int i = 0; i < CONFIG_RX_SAMPLE_NUMBER; i++) {
     dc_sum += signal_buf[i];
   }
 
-  float true_dc_offset = (float)dc_sum / (float)n;
+  float true_dc_offset = (float)dc_sum / (float)CONFIG_RX_SAMPLE_NUMBER;
 
-  for (int i = start; i < CONFIG_RX_SAMPLE_NUMBER; i++) {
+  for (int i = 0; i < CONFIG_RX_SAMPLE_NUMBER; i++) {
+
     float ac_wave_signal = (float)signal_buf[i] - true_dc_offset;
 
     sin_accumulation += cached_s_c->sine[i] * ac_wave_signal;
@@ -431,11 +382,21 @@ int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
   amp = sqrtf((sin_accumulation * sin_accumulation) +
               (cos_accumulation * cos_accumulation));
 
-  amp = (amp / (float)n) * 2.0f;
+  amp = (amp / (float)CONFIG_RX_SAMPLE_NUMBER) * 2.0f;
+
   amp = (amp / 4096.0f) * 3.6f;
   amp = amp * 1000.0f;
 
+  // phase was calculated differently to paper here
+  // because of the the way it is entering the coil
   phase = atan2f(-sin_accumulation, cos_accumulation);
+
+  // phasor componenets
+  //
+  I = cos_accumulation;
+  Q = -sin_accumulation;
+
+  amp = sqrtf(I*I + Q*Q);
 
   update_rx_adc_data(amp, phase, axis);
 
@@ -447,8 +408,8 @@ void switch_channel(uint8_t channel_num) {
   gpio_pin_set_dt(&mux_s1, (channel_num & 0x02) ? 1 : 0);
   gpio_pin_set_dt(&mux_s2, (channel_num & 0x04) ? 1 : 0);
 
-  // k_busy_wait(250);
-  k_busy_wait(1000);
+  k_busy_wait(50);
+  // k_busy_wait(1000);
 }
 
 void adc_sample(uint8_t channel_num, nrf_saadc_value_t *buf,
@@ -551,72 +512,55 @@ void start_adc_thread(void *, void *, void *) {
     local_tx_data.q2 = sync.q2;
     local_tx_data.q3 = sync.q3;
 
-    debug_tx_sync_consistency(sync.seq, sync.timestamp, sync.tx_phase);
-    // printk("ADC read sync timestamp=%u\n", local_timestamp);
-    // read_tx_data(&local_tx_data);
-    //
-    // need to implmenet 2 stage change
-    // vout4 L1
-    adc_sample(0, dummy_buf, &dummy_ts);
     adc_sample(0, sample_buf_x, &adc_timestamp_x);
+    // adc_sample(3, sample_buf_y, &adc_timestamp_y);
+    // adc_sample(5, sample_buf_z, &adc_timestamp_z);
 
-    adc_sample(3, dummy_buf, &dummy_ts);
-    adc_sample(3, sample_buf_y, &adc_timestamp_y);
-
-    adc_sample(5, dummy_buf, &dummy_ts);
-    adc_sample(5, sample_buf_z, &adc_timestamp_z);
-
-    // printk("TIMES sync=%u x=%u y=%u z=%u dx=%u dy=%u dz=%u\n",
-    // local_timestamp,
-    //        adc_timestamp_x, adc_timestamp_y, adc_timestamp_z,
-    //        (uint32_t)(adc_timestamp_x - local_timestamp),
-    //        (uint32_t)(adc_timestamp_y - local_timestamp),
-    //        (uint32_t)(adc_timestamp_z - local_timestamp));
-
+    // ISSUE: need to change this from TX matched filter
     tx_matched_filter(sample_buf_x, &cached_s_c, "x");
-    tx_matched_filter(sample_buf_y, &cached_s_c, "y");
-    tx_matched_filter(sample_buf_z, &cached_s_c, "z");
-    //
+    // tx_matched_filter(sample_buf_y, &cached_s_c, "y");
+    // tx_matched_filter(sample_buf_z, &cached_s_c, "z");
+
+    // printk("raw amplitude | x: %.3f | y: %.3f | z: %.3f\n",
+    //        local_signal_data.adc_x_amp, local_signal_data.adc_y_amp,
+    //        local_signal_data.adc_z_amp);
+
     read_rx_adc_data(&local_signal_data);
-    //
+
+    raw_phase = local_signal_data.adc_x_phase;
+    // extracted phase from matched filter
+
     phase_sync_signs();
     //
     read_rx_adc_data(&local_signal_data);
     read_data(&local_data_rx);
 
-#if DEBUG_GAIN_CAL
-    printk("CAL,%u,%.6f,%.6f,%.6f,"
-           "%.6f,%.6f,%.6f,"
-           "%.6f,%.6f,%.6f,%.6f,"
-           "%.6f,%.6f,%.6f,%.6f\n",
-           sync.seq, local_signal_data.adc_x_amp, local_signal_data.adc_y_amp,
-           local_signal_data.adc_z_amp, local_signal_data.adc_x_phase,
-           local_signal_data.adc_y_phase, local_signal_data.adc_z_phase,
-           local_data_rx.q0, local_data_rx.q1, local_data_rx.q2,
-           local_data_rx.q3, local_tx_data.q0, local_tx_data.q1,
-           local_tx_data.q2, local_tx_data.q3);
-#endif
-    //
-    float bx = -(local_signal_data.adc_x_amp * GAIN_X);
-    float by = -(local_signal_data.adc_y_amp * GAIN_Y);
-    float bz = (local_signal_data.adc_z_amp * GAIN_Z);
+    float phase_err = wrap_to_pi(raw_phase - synced_phase);
+    printk("phase: %.3f | q0: %.3f | q1: %.3f | q2: %.3f | q3: %.3f | "
+           "syncedPhase: %.3f | phaseErr: %.2f | amp: %.3f | I: %.3f | Q: %.3f\n",
+           raw_phase, local_data_rx.q0, local_data_rx.q1, local_data_rx.q2,
+           local_data_rx.q3, synced_phase, phase_err,local_signal_data.adc_x_amp,I,Q);
 
-    float bmag = sqrtf(bx * bx + by * by + bz * bz);
+    // float bx = (local_signal_data.adc_x_amp * GAIN_X);
+    // float by = (local_signal_data.adc_y_amp * GAIN_Y);
+    // float bz = (local_signal_data.adc_z_amp * GAIN_Z);
 
-    if (!isfinite(bmag) || bmag < 20.0f) {
-      printk("NO_TX Brx %.3f %.3f %.3f | |Brx| %.3f\n", bx, by, bz, bmag);
-      continue;
-    }
-    struct solver_packet_t pos_packet = {
-        .bx = bx,
-        .by = by,
-        .bz = bz,
-        .q0 = local_tx_data.q0,
-        .q1 = local_tx_data.q1,
-        .q2 = local_tx_data.q2,
-        .q3 = local_tx_data.q3,
-    };
+    // float bmag = sqrtf(bx * bx + by * by + bz * bz);
+
+    // if (!isfinite(bmag) || bmag < 20.0f) {
+    //   printk("NO_TX Brx %.3f %.3f %.3f | |Brx| %.3f\n", bx, by, bz, bmag);
+    //   continue;
+    // }
+    // struct solver_packet_t pos_packet = {
+    //     .bx = bx,
+    //     .by = by,
+    //     .bz = bz,
+    //     .q0 = local_tx_data.q0,
+    //     .q1 = local_tx_data.q1,
+    //     .q2 = local_tx_data.q2,
+    //     .q3 = local_tx_data.q3,
+    // };
     //
-    k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
+    // k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
   }
 }

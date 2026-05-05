@@ -24,7 +24,7 @@ class serial_reader():
                 except Exception:
                     continue
                 matchs = search_pattern.findall(raw_line)
-                matches_dict = {}
+                matches_dict = {"raw":raw_line}
                 [matches_dict.update({k:v}) for (k,v) in matchs]
                 try:
                     # print(raw_line)

@@ -7,6 +7,11 @@ from vispy.app import use_app
 from vispy import geometry
 import queue
 
+import numpy as np
+
+def wrap_to_pi(x):
+    return (x + np.pi) % (2 * np.pi) - np.pi
+
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, in_queue):
@@ -42,6 +47,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         scene.visuals.Text(parent=self.view3d, text="Quaterion visulisation", pos=[
             350, 200, 0], face="Poppins", color="white")
+        self.axis = scene.visuals.XYZAxis(parent=self.view3d.scene)
 
         self.resize(1400, 800)
         self.config_2d()
@@ -50,16 +56,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.start_demo_timer()
 
     def config_2d(self):
-        self.x_axis = scene.AxisWidget(orientation="top")
+        self.x_axis = scene.AxisWidget(orientation="top", axis_label="Time")
         self.view2d.add_widget(self.x_axis)
         self.x_axis.link_view(self.view2d)
 
-        self.y_axis = scene.AxisWidget(orientation="right")
+        self.y_axis = scene.AxisWidget(orientation="right", axis_label="Phase")
         self.view2d.add_widget(self.y_axis)
         self.y_axis.link_view(self.view2d)
 
-        self.line = scene.visuals.Line(
+        self.raw_phase_line = scene.visuals.Line(
             pos=[(0, 0)], color="yellow", parent=self.view2d.scene)
+
+        self.synced_phase_line = scene.visuals.Line(
+            pos=[(0, 0)], color="blue", parent=self.view2d.scene)
+
+        self.error_phase_line = scene.visuals.Line(
+            pos=[(0, 0)], color="red", parent=self.view2d.scene)
+
+
 
     def start_queue_checker(self):
         pass
@@ -68,23 +82,23 @@ class MainWindow(QtWidgets.QMainWindow):
     def start_demo_timer(self):
         self.angle = 0
         self.phase = [(0, 0)]
+        self.synced_phase = [(0, 0)]
+        self.error_phase = [(0, 0)]
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.demo_update)
         self.timer.start(5)
 
     def demo_update(self):
-        # self.angle += 0.05
-        # q = util.quaternion.Quaternion(
-        #     1, np.cos(self.angle), np.sin(self.angle), 0)
         # serial values
         sv = None
         try:
             sv = self.queue.get_nowait()
             self.queue.queue.clear()
         except KeyError:
-            pass
+            return
         except Exception as e:
-            print(e)
+            # print(e)
+            return
 
         if sv is None:
             return
@@ -94,23 +108,50 @@ class MainWindow(QtWidgets.QMainWindow):
         self.rotate_cube(q)
         # self.phase.append(sv["phase"])
         # keep x axis always increasing as time and y as the phase value
-        self.phase.append((len(self.phase), sv["phase"]))
+        self.phase.append((len(self.phase), np.sin((len(self.phase)) + float(sv["phase"]) )))
+        self.synced_phase.append((len(self.synced_phase), np.sin(( len(self.phase)) + float(sv["syncedPhase"]))))
+        self.error_phase.append((len(self.error_phase), wrap_to_pi(float(sv["phase"]) - float(sv["syncedPhase"]))))
 
-        self.line.set_data(pos=self.phase)
+        self.raw_phase_line.set_data(pos=self.phase)
+        self.synced_phase_line.set_data(pos=self.synced_phase)
+        self.error_phase_line.set_data(pos=self.error_phase)
 
         camera_x = self.phase[-1][0]
         # center the camera on the increasing X axis but keep Y stable
-        camera_length = (camera_x, 0)
+        camera_length = (camera_x - 10, 0)
         # print(camera_length)
         self.view2d.camera.center = camera_length
         self.canvas.update()
+        self.log_box.appendPlainText(sv["raw"])
+
+    def make_cube_face_colors(self):
+        # setting colours for orientation testing
+        red = [1.0, 0.0, 0.0, 1.0]   # +X
+        darkred = [0.5, 0.0, 0.0, 1.0]   # -X
+        green = [0.0, 1.0, 0.0, 1.0]   # +Y
+        darkgrn = [0.0, 0.5, 0.0, 1.0]   # -Y
+        blue = [0.0, 0.0, 1.0, 1.0]   # +Z
+        darkblu = [0.0, 0.0, 0.5, 1.0]   # -Z
+
+        return [
+            darkblu, darkblu,
+            blue, blue,
+            darkgrn, darkgrn,
+            green, green,
+            darkred, darkred,
+            red, red,
+        ]
 
     def add_cube(self):
         self.cube = scene.visuals.Cube(
-            parent=self.view3d.scene, edge_color="black")
+            parent=self.view3d.scene,
+            edge_color="black",
+            face_colors=self.make_cube_face_colors()
+        )
 
     def rotate_cube(self, q):
         # q = util.quaternion.Quaternion(1,0,5,0)
+        q = q.conjugate()
         transform_value = q.get_matrix()
 
         transform = scene.MatrixTransform()
