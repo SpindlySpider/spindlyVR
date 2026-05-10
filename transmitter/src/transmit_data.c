@@ -1,11 +1,11 @@
 #include "adc.h"
-#include "data_handle.h"
-#include <esb.h>
+#include "data_handle.h" #include <esb.h>
 #include <helpers/nrfx_gppi.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <esb.h>
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
@@ -187,7 +187,7 @@ static void debug_tx_phase_continuity(uint32_t seq, uint32_t radio_ts,
   }
 
   if (seq != prev_phase_seq + 1) {
-    printk("TXPHASE skip seq=%u prev=%u\n", seq, prev_phase_seq);
+    // printk("TXPHASE skip seq=%u prev=%u\n", seq, prev_phase_seq);
     prev_phase_seq = seq;
     prev_phase_ts = radio_ts;
     prev_phase = phase;
@@ -203,12 +203,12 @@ static void debug_tx_phase_continuity(uint32_t seq, uint32_t radio_ts,
   float err_plus = wrap_to_pi(phase - pred_plus);
   float err_minus = wrap_to_pi(phase - pred_minus);
 
-  printk("TXPHASE seq=%u dt=%u mod=%u prev=%.3f now=%.3f "
-         "plus_err=%.3f plus_cos=%.3f "
-         "minus_err=%.3f minus_cos=%.3f\n",
-         seq, dt, dt % 500, prev_phase, phase, err_plus, cosf(err_plus),
-         err_minus, cosf(err_minus));
-
+  // printk("TXPHASE seq=%u dt=%u mod=%u prev=%.3f now=%.3f "
+  //        "plus_err=%.3f plus_cos=%.3f "
+  //        "minus_err=%.3f minus_cos=%.3f\n",
+  //        seq, dt, dt % 500, prev_phase, phase, err_plus, cosf(err_plus),
+  //        err_minus, cosf(err_minus));
+  //
   prev_phase_seq = seq;
   prev_phase_ts = radio_ts;
   prev_phase = phase;
@@ -230,9 +230,9 @@ void calculate_phase_offset(float *update_phase, uint32_t adc_timestamp,
 
   debug_tx_phase_continuity(packet_seq, radio_timestamp, phase);
 
-  printk("TXCALC seq=%u adc=%u radio=%u dt=%u mod=%u raw=%.3f ff=%.3f\n",
-         packet_seq, adc_timestamp, radio_timestamp, sample_tx_tick_dif,
-         sample_tx_tick_dif % 500, local_data_container.tx_phase, phase);
+  // printk("TXCALC seq=%u adc=%u radio=%u dt=%u mod=%u raw=%.3f ff=%.3f\n",
+  //        packet_seq, adc_timestamp, radio_timestamp, sample_tx_tick_dif,
+  //        sample_tx_tick_dif % 500, local_data_container.tx_phase, phase);
 }
 
 void transmit_phase(float phase, uint32_t packet_seq) {
@@ -280,7 +280,7 @@ void start_transmit_thread(void *, void *, void *) {
   while (1) {
     k_sem_take(&adc_radio_sync_semaphore, K_FOREVER);
     uint32_t now = nrfx_timer_capture(&tx_timer, NRF_TIMER_CC_CHANNEL0);
-    printk("TX TIMER4 now=%u mod=%u\n", now, now % 500);
+    // printk("TX TIMER4 now=%u mod=%u\n", now, now % 500);
 
     read_adc_data(&local_data_container, &adc_timestamp);
 

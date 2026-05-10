@@ -6,11 +6,11 @@
 
 #include "zephyr/device.h"
 #include "zephyr/sys/util_macro.h"
+#include <zephyr/drivers/clock_control.h>
+#include <zephyr/drivers/clock_control/nrf_clock_control.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/nrf_clock_control.h>
 
 // #define THREAD_STACK_SIZE 2048
 #define THREAD_STACK_SIZE 4096
@@ -42,7 +42,7 @@ void start_precision_clock(void) {
 
 int main(void) {
 
-  k_msleep(2000);
+  k_msleep(1000);
   printk("Starting...\n");
   k_msleep(2000);
 
@@ -53,6 +53,8 @@ int main(void) {
   printk("setting up PWM...\n");
   _err = setup_pwm();
   if (_err != 0) {
+    printk("Error setting up PWM...\n");
+    k_msleep(1000);
     return 0;
   }
 

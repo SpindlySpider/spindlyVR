@@ -3,7 +3,6 @@
 #include "nrfx_templates_config.h"
 #include <helpers/nrfx_gppi.h>
 #include <math.h>
-
 #include <nrfx_saadc.h>
 #include <nrfx_timer.h>
 #include <stdint.h>
@@ -181,6 +180,7 @@ int tx_matched_filter(struct cached_sin_cos_t *cached_s_c) {
   for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
     dc_sum += sample_buf[i];
   }
+  // centre offset
   float true_dc_offset = (float)dc_sum / (float)CONFIG_TX_SAMPLE_NUMBER;
 
   for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
@@ -190,14 +190,17 @@ int tx_matched_filter(struct cached_sin_cos_t *cached_s_c) {
     cos_accumulation += (cached_s_c->cosine[i] * ac_wave_signal);
   }
 
-  // int32_t millivolts = (signal_buf[0] * 3600) / 4096;
-  // printk("ADC Reading: %d mV\n", millivolts);
-
   amp = ((sqrtf(powf(sin_accumulation, 2) + powf(cos_accumulation, 2)) /
           CONFIG_TX_SAMPLE_NUMBER));
+  // multiply by 2 because the amplitude was divided by 2
   amp = amp * 2.0f;
+
+  // normalise to volts, 4096 because its the ADC bit depth .e.g. 2**12
+  // 3.6 because its the gain range for ADC 1/6
+  // gets peak voltage in volts
   amp = (amp / 4096.0f) * 3.6f;
 
+  // dependent on coil direction
   phase = atan2f(-sin_accumulation, cos_accumulation);
   uint32_t adc_timestamp =
       nrfx_timer_capture_get(&tx_timer, NRF_TIMER_CC_CHANNEL3);
@@ -206,6 +209,7 @@ int tx_matched_filter(struct cached_sin_cos_t *cached_s_c) {
   update_signal_data(amp, phase, adc_timestamp);
   // use semaphore
   k_sem_give(&adc_radio_sync_semaphore);
+
   return 0;
 }
 
