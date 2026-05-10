@@ -519,10 +519,10 @@ void start_adc_thread(void *, void *, void *) {
     float by = (local_signal_data.adc_y_amp * GAIN_Y);
     float bz = (local_signal_data.adc_z_amp * GAIN_Z);
 
-    printk("x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis %s "
-           "| gain magnitude: %-8.3f\n",
-           bx, by, bz, coils_arr[last_reference_coil].axis,
-           sqrtf((bx * bx) + (by * by) + (bz * bz)));
+    // printk("x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis %s "
+    //        "| gain magnitude: %-8.3f\n",
+    //        bx, by, bz, coils_arr[last_reference_coil].axis,
+    //        sqrtf((bx * bx) + (by * by) + (bz * bz)));
 
     // float bmag = sqrtf(bx * bx + by * by + bz * bz);
     // if the received signal is too weak just skip rather than position solve
@@ -534,21 +534,21 @@ void start_adc_thread(void *, void *, void *) {
     // TODO: should include the current quaternions as well, so that we are not
     // using stale quaternions when calculating phase?
 
-    // struct solver_packet_t pos_packet = {
-    //     .bx = bx,
-    //     .by = by,
-    //     .bz = bz,
-    //     .tx_q0 = local_tx_data.q0,
-    //     .tx_q1 = local_tx_data.q1,
-    //     .tx_q2 = local_tx_data.q2,
-    //     .tx_q3 = local_tx_data.q3,
-    //     .rx_q0 = rx_q0,
-    //     .rx_q1 = rx_q1,
-    //     .rx_q2 = rx_q2,
-    //     .rx_q3 = rx_q3,
-    // };
+    struct solver_packet_t pos_packet = {
+        .bx = bx,
+        .by = by,
+        .bz = bz,
+        .tx_q0 = local_tx_data.q0,
+        .tx_q1 = local_tx_data.q1,
+        .tx_q2 = local_tx_data.q2,
+        .tx_q3 = local_tx_data.q3,
+        .rx_q0 = rx_q0,
+        .rx_q1 = rx_q1,
+        .rx_q2 = rx_q2,
+        .rx_q3 = rx_q3,
+    };
 
-    // k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
+    k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
     // k_msleep(10);
   }
 }

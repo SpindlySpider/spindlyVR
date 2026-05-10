@@ -3,13 +3,18 @@
 #include "zephyr/kernel.h"
 #include "zephyr/sys/printk.h"
 #include <math.h> #include <stdint.h>
+
 K_MSGQ_DEFINE(positioning_queue, sizeof(struct solver_packet_t), 10, 4);
+
+// precompute this
+#define ONE_DIVIDE_THREE (float)(1 / 3)
+#define FIVE_DIVIDE_TWO (float)(5 / 2)
 
 static struct data_container_t local_data_tx = {0};
 static struct data_container_t local_data_rx = {0};
 
 // Calibrate magnetic moment
-static float position_M = 1.0f;
+static float cal_magnetic_moment = 1.0f;
 
 void normalise_quaternion(struct quaternion_t *q) {
   // create unit quaternion
@@ -60,7 +65,7 @@ struct vector_t rotate_vector(vector_t raw_pos, struct quaternion_t tx_q,
   struct quaternion_t mag_vector = {
       .w = 0.0f, .x = rx_pos_raw.x, .y = rx_pos_raw.y, .z = rx_pos_raw.z};
 
-  // rotate magnetic vectors
+  // rotate magnetic vectors (rotation via shoemakers paper q^-1 * V * q)
   mag_vector = multiply_quaternion(inverse_q_relative, mag_vector);
   mag_vector = multiply_quaternion(mag_vector, q_realtive);
 
@@ -69,12 +74,32 @@ struct vector_t rotate_vector(vector_t raw_pos, struct quaternion_t tx_q,
   return rx_pos_rot;
 }
 
+void calculate_pos(float bx, float by, float bz) {
+  // cache values so this is slightly less expensive
+  // also this is entirely taken from research paper
+  float sqrt_bx_by = sqrtf((bx * bx) + (by * by));
+  float c1 = bz / sqrt_bx_by;
+  float c2 = (3 * c1 / 4) + (sqrtf((9 * (c1 * c1)) + 8) / 4);
+
+  float x0_denominator =
+      (4 * PI * (1 + (c2 * c2)) * FIVE_DIVIDE_TWO * sqrt_bx_by);
+  float x0_numerator = 3 * cal_magnetic_moment * c2;
+  float x0 = (x0_numerator / x0_denominator) * (ONE_DIVIDE_THREE);
+
+  float zp = c2 * x0;
+  float xp = x0 / sqrtf(1 + powf((by / bx), 2.0f));
+  float yp = sqrtf((x0 * x0) - (xp * xp));
+
+  // print values
+  printk(" X: %-7.3f | Y: %-7.3f | Z: %-7.3f\n", xp, yp, zp);
+}
+
 void start_positioning_thread(void *, void *, void *) {
   struct solver_packet_t incoming_data;
 
   while (1) {
-    // TODO: maybe dont wait on queue to free up, just keep guessing and if a
-    // position item comes in use that
+    // TODO: maybe dont wait on queue to free up, just keep guessing using accel
+    // data and if a position item comes in use that to stablize
     k_msgq_get(&positioning_queue, &incoming_data, K_FOREVER);
 
     struct vector_t rx_pos_raw = {incoming_data.bx, incoming_data.by,
@@ -95,7 +120,9 @@ void start_positioning_thread(void *, void *, void *) {
     };
 
     // rotated vector
-    struct vector_t rot_vector = rotate_vector(rx_pos_raw, q_tx_frame, q_rx_frame);
+    struct vector_t rot_vector =
+        rotate_vector(rx_pos_raw, q_tx_frame, q_rx_frame);
 
     // estimate position from rotated vector
   }
+}
