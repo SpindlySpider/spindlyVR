@@ -50,14 +50,14 @@ config IS_RECEIVER
 
 config RX_SAMPLE_NUMBER
   int "Number of samples to use for positioning and phase Synchronization"
-  default 100
+  default 50
   help
     Number of samples to use when calculating Tx phase and amp.
 
 
 config TX_SAMPLE_NUMBER
   int "Number of samples to use when calculating Tx phase and amp"
-  default 100
+  default 50
   help
     Number of samples to use when calculating Tx phase and amp, higher numbers will increase accuracy at cost of performance.
 

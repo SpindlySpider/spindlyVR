@@ -59,10 +59,8 @@ void esb_rx_event_handler(struct esb_evt const *event) {
       continue;
     }
 
-    /*
-     * Packet N contains phase for packet N-1.
-     * Therefore pair incoming tx_phase with previous packet timestamp.
-     */
+    // packet this packet contains the phase for the previous packet e.g. (N-1)
+    // place with prev timestamp
     struct rx_sync_ref_t sync = {
         .seq = prev_packet_seq,
         .timestamp = prev_packet_timestamp,
@@ -72,13 +70,10 @@ void esb_rx_event_handler(struct esb_evt const *event) {
         .q2 = incoming_data.data.q2,
         .q3 = incoming_data.data.q3,
     };
+    // ISSUE: save the current quaterion incase race condition and not comparing quaterions correctly
 
-    /*
-     * If ADC is behind, drop old sync events.
-     * Better to use the newest coherent sync than process stale ones.
-     * seems like this always removes the packets?
-     * if its using old ones would probbaly be better to have a timer condition on ADC to chhose wether to use them or not
-     */
+    // seems like this always removes the packets?
+    // if its using old ones would probbaly be better to have a timer condition on ADC to chhose wether to use them or not
     if (k_msgq_put(&rx_sync_msgq, &sync, K_NO_WAIT) != 0) {
       struct rx_sync_ref_t dummy;
       // removes old packets from queue

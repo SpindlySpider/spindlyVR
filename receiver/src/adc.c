@@ -19,34 +19,22 @@
 // pin out from here: https://nicekeyboards.com/docs/nice-nano/pinout-schematic/
 // ADC pins
 #define PIN_X NRF_SAADC_INPUT_AIN0 // pin 0.02
-// #define PIN_X NRF_SAADC_INPUT_AIN7 // pin 0.31
 // TODO: move these into KCONFIG
-// #define GAIN_X 1
-// #define GAIN_Y 1
-// #define GAIN_Z 1
-
-#define DEBUG_GAIN_CAL 0
 #define GAIN_X 1.109552f
 #define GAIN_Y 0.963442f
 #define GAIN_Z 0.935464f
-#define ADC_DISCARD_SAMPLES 16
-
 #ifndef PI
 #define PI 3.14159265358979323846f
 #endif
 #define TWO_PI (2.0f * PI)
-#define TX_FREQ_HZ 32000.0f
-#define TIMER_FREQ_HZ 16000000.0f
-
-#define TX_FREQ_HZ 32000.0f
-#define TIMER_FREQ_HZ 16000000.0f
 
 extern struct k_msgq rx_sync_msgq;
 
 typedef struct {
-  float phase_offset_rad; // Calibrate this per axis
-  float min_amp;          // Ignore sign updates below this amplitude
-  float deadband_cos;     // Prevent sign flips near 90 deg uncertainty
+  float phase_offset_rad; // phase offset for each coil
+  float min_amp;          // minimum amp to actually listen to phase readings
+  float deadband_cos; // if reading is strongly pos or neg switch it, if near 0
+                      // (90deg) dont use result.
   float last_sign;
 } phase_axis_cal_t;
 
@@ -55,25 +43,17 @@ K_SEM_DEFINE(adc_semaphore, 0, 1);
 // used to pass messages to positioning thread
 extern struct k_msgq positioning_queue;
 extern struct k_sem radio_sync_sem;
-// setup timer
-// static nrfx_timer_t adc_timer = NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(3));
 
 // used for calculating phase for sign
 static uint32_t local_timestamp;
-// static uint32_t adc_timestamp;
 static uint32_t adc_timestamp_x;
 static uint32_t adc_timestamp_y;
 static uint32_t adc_timestamp_z;
-static uint32_t dummy_ts;
 
 static float synced_phase;
 static float raw_phase;
-static float I;
-static float Q;
 
-// this variable is a pointer to the full buffer. static uint32_t current_buffer
-// = 0;
-
+// needed for passing to pos algo?
 static struct rx_data_container_t local_sensor_data;
 
 static struct rx_data_signal_t local_signal_data;
@@ -87,11 +67,10 @@ static const struct gpio_dt_spec mux_s1 =
 static const struct gpio_dt_spec mux_s2 =
     GPIO_DT_SPEC_GET(DT_NODELABEL(mux_s2), gpios);
 
-int16_t sample_buf_x[CONFIG_RX_SAMPLE_NUMBER] __attribute__((aligned(4))) = {0};
-int16_t sample_buf_y[CONFIG_RX_SAMPLE_NUMBER] __attribute__((aligned(4))) = {0};
-int16_t sample_buf_z[CONFIG_RX_SAMPLE_NUMBER] __attribute__((aligned(4))) = {0};
+int16_t sample_buf_x[CONFIG_RX_SAMPLE_NUMBER] = {0};
+int16_t sample_buf_y[CONFIG_RX_SAMPLE_NUMBER] = {0};
+int16_t sample_buf_z[CONFIG_RX_SAMPLE_NUMBER] = {0};
 
-int16_t dummy_buf[CONFIG_RX_SAMPLE_NUMBER] __attribute__((aligned(4))) = {0};
 int32_t val_mv;
 int32_t err;
 
@@ -99,11 +78,6 @@ int32_t err;
 static float amp_bias;
 struct cached_sin_cos_t cached_s_c = {.sine = {0}, .cosine = {0}};
 
-static bool have_last_sync_dbg = false;
-static uint32_t last_sync_ts = 0;
-static float last_sync_phase = 0.0f;
-
-// Start with zero offsets. You will calibrate these.
 static phase_axis_cal_t phase_x = {
     .phase_offset_rad = -2.392f,
     .min_amp = 20.0f,
@@ -126,44 +100,23 @@ static phase_axis_cal_t phase_z = {
 };
 
 static float wrap_to_pi(float angle) {
+  // add PI to shift angle from -pi to 0, 2pi
   angle = fmodf(angle + PI, TWO_PI);
   if (angle < 0.0f) {
+    // rotate the angle back to be positive 2 pi range
     angle += TWO_PI;
   }
+  // shifts value back to -pi to pi range
   return angle - PI;
 }
 
-static inline uint32_t ticks_since(uint32_t now, uint32_t then) {
-  return now - then;
-}
-
-static float wrap_pi(float x) {
-  while (x > PI) {
-    x -= 2.0f * PI;
-  }
-
-  while (x <= -PI) {
-    x += 2.0f * PI;
-  }
-
-  return x;
-}
-
-// static float phase_advance_from_ticks(uint32_t dt_ticks) {
-//   uint32_t ticks_per_period = (uint32_t)(TIMER_FREQ_HZ / TX_FREQ_HZ); // 500
-//   uint32_t phase_ticks = dt_ticks % ticks_per_period;
-//   return ((float)phase_ticks) * (2.0f * PI / (float)ticks_per_period);
-// }
-
-static float phase_advance_from_ticks(uint32_t dt_ticks) {
+static float phase_advance_from_ticks(int32_t dt_ticks) {
+  // takes int 32 as it could be negative
   const uint32_t ticks_per_period = 500; // 16 MHz / 32 kHz
-  uint32_t phase_ticks = dt_ticks % ticks_per_period;
+  // find only the remainder in phase
+  int32_t phase_ticks = dt_ticks % ticks_per_period;
+  // return how much that remainder would fast forward or rewind
   return ((float)phase_ticks) * (2.0f * PI / 500.0f);
-}
-
-float phase_advance(uint32_t dt_ticks) {
-  float cycles = ((float)dt_ticks * TX_FREQ_HZ) / TIMER_FREQ_HZ;
-  return 2.0f * PI * (cycles - floorf(cycles));
 }
 
 static void saadc_handler(nrfx_saadc_evt_t const *p_event) {
@@ -174,8 +127,6 @@ static void saadc_handler(nrfx_saadc_evt_t const *p_event) {
     break;
   }
 }
-
-static uint32_t last_sync_seq = 0;
 
 int config_saadc() {
   int err;
@@ -212,8 +163,6 @@ int config_saadc() {
 
   nrf_saadc_channel_input_set(NRF_SAADC, 0, PIN_X, NRF_SAADC_INPUT_DISABLED);
 
-  // err = nrfx_saadc_advanced_mode_set(BIT(1), NRF_SAADC_RESOLUTION_12BIT,
-  // &adv_config, saadc_handler);
   if (err != 0) {
     return err;
   }
@@ -222,14 +171,6 @@ int config_saadc() {
 
   printk("Got passed buffer set\n");
   k_msleep(1000);
-
-  // err = nrfx_saadc_offset_calibrate(saadc_handler);
-  // if (err != 0) {
-  // return err;
-  // }
-
-  // printk("Got passed offset callibrate\n");
-  // k_msleep(1000);
 
   return 0;
 }
@@ -276,51 +217,49 @@ int config_adc_ppi() {
   return 0;
 }
 
-float angle_diff(float angle1, float angle2) {
-  // finds shortest distance between input angles (radians)
-  float diff = fmodf(fabs(angle1 - angle2), 2.0f * PI);
-  if (diff > PI) {
-    diff = 2.0f * PI - diff;
-  }
-  return diff;
-}
-
-uint32_t get_safe_delta(uint32_t later_time, uint32_t earlier_time) {
-  if (later_time < earlier_time) {
-    return (4294967000 - earlier_time) + later_time;
-  }
-  return later_time - earlier_time;
-}
-
 static float sign_axis_from_phase(const char *name, float amp,
                                   float measured_phase, uint32_t axis_timestamp,
-                                  uint32_t sync_timestamp,
-                                  float tx_phase_at_sync,
+                                  uint32_t sync_timestamp, float target_phase,
                                   phase_axis_cal_t *cal) {
+  // target phase could be TX, or the internal reference coil
   float amp_abs = fabsf(amp);
 
+  // need some logic to determine if fast forward or rewind
   uint32_t dt_ticks = axis_timestamp - sync_timestamp;
 
   float expected_phase =
-      wrap_to_pi(tx_phase_at_sync + phase_advance_from_ticks(dt_ticks) +
+      wrap_to_pi(target_phase + phase_advance_from_ticks(dt_ticks) +
                  cal->phase_offset_rad);
 
   if (strcmp(name, "x") == 0) {
     synced_phase = expected_phase;
   }
 
-  float diff = wrap_to_pi(measured_phase - expected_phase);
+  // TODO: need to add a offset for the axis specific phase offset, e.g. x axis
+  // is arouind 1.20 somthing
+  //
+  // NOTE: this is just for the X axis right now - 1.20 is the phase offset
+  // average
+  float diff = wrap_to_pi((measured_phase - expected_phase) + 1.20f);
   // finding the difference between the expected phase and the measurement
 
+  // cosine used to determine sign, if the phases are aligned then the diff will
+  // be 0 or close to, this will make C postive 1 otherwise if the phase are not
+  // in algiment they will be around -pi or +pi (roughly the same angle) and
+  // will give -1
   float c = cosf(diff);
 
-  float sign = cal->last_sign;
+  // if the difference is more positive then swap sign to + otherwise -
+  float sign = (c >= 0.0f) ? 1.0f : -1.0f;
 
-  if (fabsf(c) > cal->deadband_cos) {
-    sign = (c >= 0.0f) ? 1.0f : -1.0f;
-    cal->last_sign = sign;
-  }
+  // deadband to make sure large
+  // if (fabsf(c) > cal->deadband_cos) {
+  //   sign = (c >= 0.0f) ? 1.0f : -1.0f;
+  //   cal->last_sign = sign;
+  // }
 
+  // float signed_amp = amp_abs * sign;
+  //
   float signed_amp = amp_abs * sign;
 
   return signed_amp;
@@ -330,22 +269,40 @@ void phase_sync_signs(void) {
   float tx_phase = local_tx_data.tx_phase;
   uint32_t sync_time = local_timestamp;
 
+  // ISSUE: need to dynamically select which coil as the best phase
+
+  // TODO:
+  // find which coil has the largest amplitude
+  // for loop? - save largest value? also have a config range, if the last one
+  // has not changed then continue using it
+  for (int i = 0; i < 3; i++) {
+    // check each coil value 
+    // only change selected coil if diff is above threshold
+
+  }
+
+  // TODO:
+  //  compare the highest with tx phase, then compare others from that
+  //       issue that might arise is that you may need to rewind phase?
+  //  update the shared datastruct
+
   // read timestamp and fast forward phase
   local_signal_data.adc_x_amp = sign_axis_from_phase(
       "x", local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
       adc_timestamp_x, sync_time, tx_phase, &phase_x);
 
-  local_signal_data.adc_y_amp = sign_axis_from_phase(
-      "y", local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
-      adc_timestamp_y, sync_time, tx_phase, &phase_y);
+  // local_signal_data.adc_y_amp = sign_axis_from_phase(
+  //     "y", local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
+  //     adc_timestamp_y, sync_time, tx_phase, &phase_y);
 
   // ISSUE: this is the only one needed, the paper says that only one phase sign
   // is needed and im assuming its the one parallel to the transmitter can
   // implement a dynamic picker to ensure that the signal is always being picked
+  // maybe need another helper funtion?
 
-  local_signal_data.adc_z_amp = sign_axis_from_phase(
-      "z", local_signal_data.adc_z_amp, local_signal_data.adc_z_phase,
-      adc_timestamp_z, sync_time, tx_phase, &phase_z);
+  // local_signal_data.adc_z_amp = sign_axis_from_phase(
+  //     "z", local_signal_data.adc_z_amp, local_signal_data.adc_z_phase,
+  //     adc_timestamp_z, sync_time, tx_phase, &phase_z);
 
   update_rx_adc_data(local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
                      "x");
@@ -365,6 +322,8 @@ int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
   float phase = 0.0f;
   int32_t dc_sum = 0;
 
+  // because voltage can be varaible, on the vbias a sum is added to make sure
+  // it stays centered
   for (int i = 0; i < CONFIG_RX_SAMPLE_NUMBER; i++) {
     dc_sum += signal_buf[i];
   }
@@ -384,20 +343,16 @@ int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
 
   amp = (amp / (float)CONFIG_RX_SAMPLE_NUMBER) * 2.0f;
 
+  // normalise to volts
   amp = (amp / 4096.0f) * 3.6f;
+  // change to update to milivolts
   amp = amp * 1000.0f;
 
   // phase was calculated differently to paper here
   // because of the the way it is entering the coil
   phase = atan2f(-sin_accumulation, cos_accumulation);
 
-  // phasor componenets
-  //
-  I = cos_accumulation;
-  Q = -sin_accumulation;
-
-  amp = sqrtf(I*I + Q*Q);
-
+  // update :)
   update_rx_adc_data(amp, phase, axis);
 
   return 0;
@@ -408,6 +363,7 @@ void switch_channel(uint8_t channel_num) {
   gpio_pin_set_dt(&mux_s1, (channel_num & 0x02) ? 1 : 0);
   gpio_pin_set_dt(&mux_s2, (channel_num & 0x04) ? 1 : 0);
 
+  // if still arcing can reduce this
   k_busy_wait(50);
   // k_busy_wait(1000);
 }
@@ -418,8 +374,6 @@ void adc_sample(uint8_t channel_num, nrf_saadc_value_t *buf,
 
   nrfx_timer_disable(&adc_timer);
   nrfx_timer_clear(&adc_timer);
-
-  // k_sem_reset(&adc_semaphore);
 
   nrfx_err_t err = nrfx_saadc_buffer_set(buf, CONFIG_RX_SAMPLE_NUMBER);
   if (err != 0) {
@@ -432,8 +386,8 @@ void adc_sample(uint8_t channel_num, nrf_saadc_value_t *buf,
 
   k_sem_take(&adc_semaphore, K_FOREVER);
 
+  // store when ADC started sampling
   *timestamp_out = nrfx_timer_capture_get(&rx_timer, NRF_TIMER_CC_CHANNEL2);
-  // *timestamp_out = nrf_timer_cc_get(rx_timer.p_reg, NRF_TIMER_CC_CHANNEL2);
 
   nrfx_timer_disable(&adc_timer);
 }
@@ -505,6 +459,9 @@ void start_adc_thread(void *, void *, void *) {
 
     k_msgq_get(&rx_sync_msgq, &sync, K_FOREVER);
 
+    // Grab the current current radio timestamp and TX data and own quaternion
+    // data
+    // save local quaterions at the same timestamp
     local_timestamp = sync.timestamp;
     local_tx_data.tx_phase = sync.tx_phase;
     local_tx_data.q0 = sync.q0;
@@ -512,9 +469,11 @@ void start_adc_thread(void *, void *, void *) {
     local_tx_data.q2 = sync.q2;
     local_tx_data.q3 = sync.q3;
 
+    // really these should be done as soon as possible, I wonder if there is a
+    // better way to optimise this?
     adc_sample(0, sample_buf_x, &adc_timestamp_x);
-    // adc_sample(3, sample_buf_y, &adc_timestamp_y);
-    // adc_sample(5, sample_buf_z, &adc_timestamp_z);
+    adc_sample(3, sample_buf_y, &adc_timestamp_y);
+    adc_sample(5, sample_buf_z, &adc_timestamp_z);
 
     // ISSUE: need to change this from TX matched filter
     tx_matched_filter(sample_buf_x, &cached_s_c, "x");
@@ -531,15 +490,22 @@ void start_adc_thread(void *, void *, void *) {
     // extracted phase from matched filter
 
     phase_sync_signs();
-    //
+
     read_rx_adc_data(&local_signal_data);
     read_data(&local_data_rx);
 
-    float phase_err = wrap_to_pi(raw_phase - synced_phase);
+    // Added X axis phase offset to see how results look
+    float phase_err = wrap_to_pi((raw_phase - synced_phase) + 1.20f);
+
     printk("phase: %.3f | q0: %.3f | q1: %.3f | q2: %.3f | q3: %.3f | "
-           "syncedPhase: %.3f | phaseErr: %.2f | amp: %.3f | I: %.3f | Q: %.3f\n",
+           "syncedPhase: %.3f | phaseErr: %.2f | amp: %.3f \n",
            raw_phase, local_data_rx.q0, local_data_rx.q1, local_data_rx.q2,
-           local_data_rx.q3, synced_phase, phase_err,local_signal_data.adc_x_amp,I,Q);
+           local_data_rx.q3, synced_phase, phase_err,
+           local_signal_data.adc_x_amp);
+
+    // printk("first timestamp: %d | last timestamp: %d | difference: %d\n",
+    //        adc_timestamp_x, adc_timestamp_z, adc_timestamp_z -
+    //        adc_timestamp_x);
 
     // float bx = (local_signal_data.adc_x_amp * GAIN_X);
     // float by = (local_signal_data.adc_y_amp * GAIN_Y);
@@ -551,6 +517,10 @@ void start_adc_thread(void *, void *, void *) {
     //   printk("NO_TX Brx %.3f %.3f %.3f | |Brx| %.3f\n", bx, by, bz, bmag);
     //   continue;
     // }
+
+    // TODO: should include the current quaternions as well, so that we are not
+    // using stale quaternions when calculating phase?
+
     // struct solver_packet_t pos_packet = {
     //     .bx = bx,
     //     .by = by,

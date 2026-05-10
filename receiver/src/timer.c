@@ -1,18 +1,11 @@
 // timer file to manage timer for broadcasting data and working out phase sync
 //
-#include "data_handle.h"
-#include "nrfx_templates_config.h"
-#include "zephyr/kernel.h"
 #include <esb.h>
 #include <hal/nrf_timer.h>
-#include <math.h>
 #include <nrfx_timer.h>
 #include <stdint.h>
-#include <string.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
-
-#import "receive_data.h"
 
 // used for ADC timing
 static nrfx_timer_t adc_timer = NRFX_TIMER_INSTANCE(NRF_TIMER_INST_GET(3));

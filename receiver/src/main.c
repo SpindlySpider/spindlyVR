@@ -15,6 +15,7 @@
 #define THREAD_PRIORITY 7
 
 K_THREAD_STACK_DEFINE(adc_stack, THREAD_STACK_SIZE);
+
 // will need to transmit to other
 K_THREAD_STACK_DEFINE(receive_stack, THREAD_STACK_SIZE);
 K_THREAD_STACK_DEFINE(orientation_stack, THREAD_STACK_SIZE);
@@ -45,9 +46,10 @@ void start_precision_clock(void) {
 
 int main(void) {
 
-  k_msleep(1000);
+  k_msleep(5000);
   printk("Starting...\n");
   k_msleep(1000);
+
   printk("Start precison clock...\n");
   start_precision_clock();
   k_msleep(1000);
@@ -70,14 +72,6 @@ int main(void) {
     k_msleep(1000);
     return _err;
   }
-
-  // printk("Setting up receiver gppio\n");
-  // k_msleep(1000);
-  // _err = setup_rx_gppi();
-  // if (_err != 0) {
-  //   return _err;
-  // }
-
   // set this up last, or atleast before ADC so timer is available
   printk("Setting up reciever\n");
   k_msleep(1000);
