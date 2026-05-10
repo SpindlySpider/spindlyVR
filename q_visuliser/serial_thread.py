@@ -5,6 +5,7 @@ import re
 
 
 class serial_reader():
+    # this class reads from a serial output (configurable in __init__) uses regex to get key: value and then stores in dict
     def __init__(self, output_queue):
         self.queue = output_queue
         self.baudrate = 115200

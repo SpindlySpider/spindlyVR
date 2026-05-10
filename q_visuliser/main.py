@@ -12,8 +12,6 @@ use_app("pyside6")
 app = QtWidgets.QApplication()
 
 #setup serial thead
-
-
 reader = serial_reader(shared_queue)
 thread = threading.Thread(target=reader.start_thread)
 thread.start()

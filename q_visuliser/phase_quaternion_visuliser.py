@@ -9,6 +9,7 @@ import queue
 
 import numpy as np
 
+
 def wrap_to_pi(x):
     return (x + np.pi) % (2 * np.pi) - np.pi
 
@@ -73,12 +74,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.error_phase_line = scene.visuals.Line(
             pos=[(0, 0)], color="red", parent=self.view2d.scene)
 
-
-
-    def start_queue_checker(self):
-        pass
-        # this function looks at a shared queue and pops the entries and updates phase and quaternion data
-
     def start_demo_timer(self):
         self.angle = 0
         self.phase = [(0, 0)]
@@ -89,28 +84,42 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.start(5)
 
     def demo_update(self):
+        # call back for GUI thread
         # serial values
         sv = None
         try:
             sv = self.queue.get_nowait()
+            # empty queue so we always use new data
             self.queue.queue.clear()
         except KeyError:
             return
-        except Exception as e:
-            # print(e)
-            return
 
-        if sv is None:
-            return
+        try:
+            q = util.quaternion.Quaternion(
+                sv["q0"], sv["q1"], sv["q2"], sv["q3"])
+            self.rotate_cube(q)
+        except Exception:
+            # if we have no quaternion data pass :)
+            pass
 
-        q = util.quaternion.Quaternion(sv["q0"], sv["q1"], sv["q2"], sv["q3"])
+        try:
+            # try to update phase data :)
+            self.update_phase_data(sv)
+        except Exception:
+            # if we have no quaternion data pass :)
+            pass
 
-        self.rotate_cube(q)
-        # self.phase.append(sv["phase"])
-        # keep x axis always increasing as time and y as the phase value
-        self.phase.append((len(self.phase), np.sin((len(self.phase)) + float(sv["phase"]) )))
-        self.synced_phase.append((len(self.synced_phase), np.sin(( len(self.phase)) + float(sv["syncedPhase"]))))
-        self.error_phase.append((len(self.error_phase), wrap_to_pi(float(sv["phase"]) - float(sv["syncedPhase"]))))
+        self.canvas.update()
+        self.log_box.appendPlainText(sv["raw"])
+
+    def update_phase_data(self, sv):
+        # sv is serial values
+        self.phase.append((len(self.phase), np.sin(
+            (len(self.phase)) + float(sv["phase"]))))
+        self.synced_phase.append((len(self.synced_phase), np.sin(
+            (len(self.phase)) + float(sv["syncedPhase"]))))
+        self.error_phase.append((len(self.error_phase), wrap_to_pi(
+            float(sv["phase"]) - float(sv["syncedPhase"]))))
 
         self.raw_phase_line.set_data(pos=self.phase)
         self.synced_phase_line.set_data(pos=self.synced_phase)
@@ -121,8 +130,6 @@ class MainWindow(QtWidgets.QMainWindow):
         camera_length = (camera_x - 10, 0)
         # print(camera_length)
         self.view2d.camera.center = camera_length
-        self.canvas.update()
-        self.log_box.appendPlainText(sv["raw"])
 
     def make_cube_face_colors(self):
         # setting colours for orientation testing
