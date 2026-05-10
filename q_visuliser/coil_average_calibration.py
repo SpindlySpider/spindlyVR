@@ -32,9 +32,8 @@ def compute_average(log_location, noise_floor={"x": 0, "y": 0, "z": 0}):
 
 def calibrate(x, y, z):
     print(x, y, z)
-    array = np.array([x, y, z], dtype=float)
-    normalised = array / array.max()
-    normalised = normalised.tolist()
+    gain_average = (x+y+z) / 3
+    normalised = [gain_average/x, gain_average/y, gain_average/z]
 
     print(f"calibration results: X: {normalised[0]} | Y:{
           normalised[1]} | Z:{normalised[2]}")

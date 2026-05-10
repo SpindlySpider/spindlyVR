@@ -21,9 +21,9 @@
 // ADC pins
 #define PIN_X NRF_SAADC_INPUT_AIN0 // pin 0.02
 // TODO: move these into KCONFIG
-#define GAIN_X 1.109552f
-#define GAIN_Y 0.963442f
-#define GAIN_Z 0.935464f
+#define GAIN_X 1.2184578168707212f
+#define GAIN_Y 0.8938119254701037f
+#define GAIN_Z 0.9429631550167387f
 #ifndef PI
 #define PI 3.14159265358979323846f
 #endif
@@ -455,9 +455,13 @@ void start_adc_thread(void *, void *, void *) {
 
     k_msgq_get(&rx_sync_msgq, &sync, K_FOREVER);
 
-    // Grab the current current radio timestamp and TX data and own quaternion
-    // data
-    // TODO: save local quaterions at the same timestamp
+    // read the quaterion orientation when sampling ADC
+    read_data(&local_data_rx);
+
+    float rx_q0 = local_data_rx.q0;
+    float rx_q1 = local_data_rx.q1;
+    float rx_q2 = local_data_rx.q2;
+    float rx_q3 = local_data_rx.q3;
     local_timestamp = sync.timestamp;
     local_tx_data.tx_phase = sync.tx_phase;
     local_tx_data.q0 = sync.q0;
@@ -478,10 +482,15 @@ void start_adc_thread(void *, void *, void *) {
 
     read_rx_adc_data(&local_signal_data);
 
-    // extracted phase from matched filter
-    raw_phase = *coils_arr[last_reference_coil].phase;
+    // for calibration, before the values become signed
+    // printk(
+    //     "x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f \n",
+    //     local_signal_data.adc_x_amp, local_signal_data.adc_y_amp,
+    //     local_signal_data.adc_z_amp);
 
     phase_sync_signs();
+    // extracted phase from matched filter
+    raw_phase = *coils_arr[last_reference_coil].phase;
 
     read_rx_adc_data(&local_signal_data);
 
@@ -489,7 +498,6 @@ void start_adc_thread(void *, void *, void *) {
 
     // Looks at reference coils phase error
     // float phase_err = wrap_to_pi((raw_phase - synced_phase));
-
     // printk("phase: %6.3f | q0: %6.3f | q1: %6.3f | q2: %6.3f | q3: %6.3f | "
     //        "syncedPhase: %6.3f | phaseErr: %6.2f | %s amp: %5.3f \n",
     //        raw_phase, local_data_rx.q0, local_data_rx.q1, local_data_rx.q2,
@@ -497,21 +505,27 @@ void start_adc_thread(void *, void *, void *) {
     //        coils_arr[last_reference_coil].axis,
     //        *coils_arr[last_reference_coil].amp);
 
-    printk(
-        "x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis %s\n",
-        local_signal_data.adc_x_amp, local_signal_data.adc_y_amp,
-        local_signal_data.adc_z_amp, coils_arr[last_reference_coil].axis);
+    // printk(
+    //     "x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis
+    //     %s\n", local_signal_data.adc_x_amp, local_signal_data.adc_y_amp,
+    //     local_signal_data.adc_z_amp, coils_arr[last_reference_coil].axis);
 
     // printk("first timestamp: %d | last timestamp: %d | difference: %d\n",
     //        adc_timestamp_x, adc_timestamp_z, adc_timestamp_z -
     //        adc_timestamp_x);
 
-    // float bx = (local_signal_data.adc_x_amp * GAIN_X);
-    // float by = (local_signal_data.adc_y_amp * GAIN_Y);
-    // float bz = (local_signal_data.adc_z_amp * GAIN_Z);
+    // scale the vectors
+    float bx = (local_signal_data.adc_x_amp * GAIN_X);
+    float by = (local_signal_data.adc_y_amp * GAIN_Y);
+    float bz = (local_signal_data.adc_z_amp * GAIN_Z);
+
+    printk("x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis %s "
+           "| gain magnitude: %-8.3f\n",
+           bx, by, bz, coils_arr[last_reference_coil].axis,
+           sqrtf((bx * bx) + (by * by) + (bz * bz)));
 
     // float bmag = sqrtf(bx * bx + by * by + bz * bz);
-
+    // if the received signal is too weak just skip rather than position solve
     // if (!isfinite(bmag) || bmag < 20.0f) {
     //   printk("NO_TX Brx %.3f %.3f %.3f | |Brx| %.3f\n", bx, by, bz, bmag);
     //   continue;
@@ -524,12 +538,17 @@ void start_adc_thread(void *, void *, void *) {
     //     .bx = bx,
     //     .by = by,
     //     .bz = bz,
-    //     .q0 = local_tx_data.q0,
-    //     .q1 = local_tx_data.q1,
-    //     .q2 = local_tx_data.q2,
-    //     .q3 = local_tx_data.q3,
+    //     .tx_q0 = local_tx_data.q0,
+    //     .tx_q1 = local_tx_data.q1,
+    //     .tx_q2 = local_tx_data.q2,
+    //     .tx_q3 = local_tx_data.q3,
+    //     .rx_q0 = rx_q0,
+    //     .rx_q1 = rx_q1,
+    //     .rx_q2 = rx_q2,
+    //     .rx_q3 = rx_q3,
     // };
-    //
+
     // k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
+    // k_msleep(10);
   }
 }
