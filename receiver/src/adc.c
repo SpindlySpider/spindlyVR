@@ -1,3 +1,4 @@
+#include "adc.h"
 #include "data_handle.h"
 #include "hal/nrf_saadc.h"
 #include "hal/nrf_timer.h"
@@ -30,14 +31,6 @@
 
 extern struct k_msgq rx_sync_msgq;
 
-typedef struct {
-  float phase_offset_rad; // phase offset for each coil
-  float min_amp;          // minimum amp to actually listen to phase readings
-  float deadband_cos; // if reading is strongly pos or neg switch it, if near 0
-                      // (90deg) dont use result.
-  float last_sign;
-} phase_axis_cal_t;
-
 K_SEM_DEFINE(adc_semaphore, 0, 1);
 
 // used to pass messages to positioning thread
@@ -67,6 +60,23 @@ static const struct gpio_dt_spec mux_s1 =
 static const struct gpio_dt_spec mux_s2 =
     GPIO_DT_SPEC_GET(DT_NODELABEL(mux_s2), gpios);
 
+// array of each coils pointers
+static struct coil_data_storage coils_arr[3] = {
+    {&local_signal_data.adc_x_amp, &local_signal_data.adc_x_phase, "x",
+     &adc_timestamp_x, -1.20f, 35.0f, 0.1, 1},
+    {&local_signal_data.adc_y_amp, &local_signal_data.adc_y_phase, "y",
+     &adc_timestamp_y, 0.0f, 35.0f, 0.1, 1},
+    {&local_signal_data.adc_z_amp, &local_signal_data.adc_z_phase, "z",
+     &adc_timestamp_z, 1.50f, 35.0f, 0.1, 1}};
+
+// the last reference coil, use to determine if the reference coil should be
+// changed, integer because it directly relates to the index above
+static uint8_t last_reference_coil = 0;
+// what is the minimum amount of difference between stronger amp of the coil to
+// change to and the current coil
+//
+static float min_threshold_coil_change = 20.f;
+
 int16_t sample_buf_x[CONFIG_RX_SAMPLE_NUMBER] = {0};
 int16_t sample_buf_y[CONFIG_RX_SAMPLE_NUMBER] = {0};
 int16_t sample_buf_z[CONFIG_RX_SAMPLE_NUMBER] = {0};
@@ -77,27 +87,6 @@ int32_t err;
 // NOTE: store 100(default) signal entries for phase and amp calculation
 static float amp_bias;
 struct cached_sin_cos_t cached_s_c = {.sine = {0}, .cosine = {0}};
-
-static phase_axis_cal_t phase_x = {
-    .phase_offset_rad = -2.392f,
-    .min_amp = 20.0f,
-    .deadband_cos = 0.50f,
-    .last_sign = 1.0f,
-};
-
-static phase_axis_cal_t phase_y = {
-    .phase_offset_rad = -2.792f,
-    .min_amp = 20.0f,
-    .deadband_cos = 0.50f,
-    .last_sign = 1.0f,
-};
-
-static phase_axis_cal_t phase_z = {
-    .phase_offset_rad = -2.652f,
-    .min_amp = 20.0f,
-    .deadband_cos = 0.50f,
-    .last_sign = 1.0f,
-};
 
 static float wrap_to_pi(float angle) {
   // add PI to shift angle from -pi to 0, 2pi
@@ -217,46 +206,52 @@ int config_adc_ppi() {
   return 0;
 }
 
-static float sign_axis_from_phase(const char *name, float amp,
-                                  float measured_phase, uint32_t axis_timestamp,
-                                  uint32_t sync_timestamp, float target_phase,
-                                  phase_axis_cal_t *cal) {
+static float sign_axis_from_phase(struct coil_data_storage data,
+                                  uint32_t sync_timestamp, float target_phase) {
   // target phase could be TX, or the internal reference coil
-  float amp_abs = fabsf(amp);
+  // sync timestamp will either be when tx coil was received or the reference
+  // coil timestamp
+  float amp_abs = fabsf(*data.amp);
+  float phase_offset = 0.0f;
 
-  // need some logic to determine if fast forward or rewind
-  uint32_t dt_ticks = axis_timestamp - sync_timestamp;
+  int32_t dt_ticks = *data.axis_timestamp - sync_timestamp;
 
+  // calculate the expected phase, may need to be rewind or speed up, if
+  // referncing internal coils, maybe ignore offset?
   float expected_phase =
-      wrap_to_pi(target_phase + phase_advance_from_ticks(dt_ticks) +
-                 cal->phase_offset_rad);
+      wrap_to_pi(target_phase + phase_advance_from_ticks(dt_ticks));
 
-  if (strcmp(name, "x") == 0) {
+  if (strcmp(data.axis, coils_arr[last_reference_coil].axis) == 0) {
+    // if this is the reference coil, see what the synced and expected phase is
     synced_phase = expected_phase;
+    phase_offset = data.phase_offset_rad;
   }
 
-  // TODO: need to add a offset for the axis specific phase offset, e.g. x axis
-  // is arouind 1.20 somthing
-  //
-  // NOTE: this is just for the X axis right now - 1.20 is the phase offset
-  // average
-  float diff = wrap_to_pi((measured_phase - expected_phase) + 1.20f);
+  // NOTE: This conditionally applies the phase_offset radians, if this is the
+  // refernce coil, otherwise ignore
+
+  float diff = wrap_to_pi((*data.phase - expected_phase) + phase_offset);
   // finding the difference between the expected phase and the measurement
 
-  // cosine used to determine sign, if the phases are aligned then the diff will
-  // be 0 or close to, this will make C postive 1 otherwise if the phase are not
+  // cosine used to determine sign.
+  // If the phases are aligned then the diff will be 0 or close to.
+  // This will make C postive 1 otherwise if the phase are not
   // in algiment they will be around -pi or +pi (roughly the same angle) and
   // will give -1
   float c = cosf(diff);
 
   // if the difference is more positive then swap sign to + otherwise -
-  float sign = (c >= 0.0f) ? 1.0f : -1.0f;
+  // float sign = (c >= 0.0f) ? 1.0f : -1.0f;
+  float sign = data.last_sign;
 
-  // deadband to make sure large
-  // if (fabsf(c) > cal->deadband_cos) {
-  //   sign = (c >= 0.0f) ? 1.0f : -1.0f;
-  //   cal->last_sign = sign;
-  // }
+  // deadband does not seem to be working, need another solution which rejects
+  // sign change unless the last 2 have been a sign change?
+
+  // // deadband to make sure there is enough of a difference to change sign
+  if (fabsf(c) > data.deadband_cos && amp_abs > data.min_amp) {
+    sign = (c >= 0.0f) ? 1.0f : -1.0f;
+    data.last_sign = sign;
+  }
 
   // float signed_amp = amp_abs * sign;
   //
@@ -267,43 +262,43 @@ static float sign_axis_from_phase(const char *name, float amp,
 
 void phase_sync_signs(void) {
   float tx_phase = local_tx_data.tx_phase;
-  uint32_t sync_time = local_timestamp;
+  // when the TX was received
+  uint32_t tx_sync_time = local_timestamp;
 
   // ISSUE: need to dynamically select which coil as the best phase
 
-  // TODO:
   // find which coil has the largest amplitude
-  // for loop? - save largest value? also have a config range, if the last one
-  // has not changed then continue using it
   for (int i = 0; i < 3; i++) {
-    // check each coil value 
-    // only change selected coil if diff is above threshold
+    // if the difference between this coil (x,y,z) and the last reference coil
+    // is greater than the minimum threshold change
+    // should be postive since this is before the sign is applied
+    if (*coils_arr[i].amp - *coils_arr[last_reference_coil].amp >
+        min_threshold_coil_change) {
+      // switch the coil, this should ensure that the largest coil is always
+      // selected, change the intger
+      last_reference_coil = i;
+    }
+  }
+  // from here the last reference coil has the coil we will compare tx phase to
 
+  // get the reference coil data
+  struct coil_data_storage data = coils_arr[last_reference_coil];
+  // update the reference coils sign first
+  *data.amp = sign_axis_from_phase(data, tx_sync_time, tx_phase);
+
+  // update coils from internal reference coil
+  for (int i = 0; i < 3; i++) {
+    if (i == last_reference_coil) {
+      // skip reference coil!
+      continue;
+    }
+    // update value at coils array amp (local_signal_data.amp)
+    // compare this sampled coil to the sample time of the reference coil
+    *coils_arr[i].amp =
+        sign_axis_from_phase(coils_arr[i], *data.axis_timestamp, *data.phase);
   }
 
-  // TODO:
-  //  compare the highest with tx phase, then compare others from that
-  //       issue that might arise is that you may need to rewind phase?
-  //  update the shared datastruct
-
-  // read timestamp and fast forward phase
-  local_signal_data.adc_x_amp = sign_axis_from_phase(
-      "x", local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
-      adc_timestamp_x, sync_time, tx_phase, &phase_x);
-
-  // local_signal_data.adc_y_amp = sign_axis_from_phase(
-  //     "y", local_signal_data.adc_y_amp, local_signal_data.adc_y_phase,
-  //     adc_timestamp_y, sync_time, tx_phase, &phase_y);
-
-  // ISSUE: this is the only one needed, the paper says that only one phase sign
-  // is needed and im assuming its the one parallel to the transmitter can
-  // implement a dynamic picker to ensure that the signal is always being picked
-  // maybe need another helper funtion?
-
-  // local_signal_data.adc_z_amp = sign_axis_from_phase(
-  //     "z", local_signal_data.adc_z_amp, local_signal_data.adc_z_phase,
-  //     adc_timestamp_z, sync_time, tx_phase, &phase_z);
-
+  // this can probbaly be compressed as well, using a for loop
   update_rx_adc_data(local_signal_data.adc_x_amp, local_signal_data.adc_x_phase,
                      "x");
 
@@ -314,8 +309,9 @@ void phase_sync_signs(void) {
                      "z");
 }
 
-int tx_matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
-                      char *axis) {
+int matched_filter(int16_t *signal_buf, struct cached_sin_cos_t *cached_s_c,
+                   char *axis) {
+
   float cos_accumulation = 0.0f;
   float sin_accumulation = 0.0f;
   float amp = 0.0f;
@@ -461,7 +457,7 @@ void start_adc_thread(void *, void *, void *) {
 
     // Grab the current current radio timestamp and TX data and own quaternion
     // data
-    // save local quaterions at the same timestamp
+    // TODO: save local quaterions at the same timestamp
     local_timestamp = sync.timestamp;
     local_tx_data.tx_phase = sync.tx_phase;
     local_tx_data.q0 = sync.q0;
@@ -476,32 +472,35 @@ void start_adc_thread(void *, void *, void *) {
     adc_sample(5, sample_buf_z, &adc_timestamp_z);
 
     // ISSUE: need to change this from TX matched filter
-    tx_matched_filter(sample_buf_x, &cached_s_c, "x");
-    // tx_matched_filter(sample_buf_y, &cached_s_c, "y");
-    // tx_matched_filter(sample_buf_z, &cached_s_c, "z");
-
-    // printk("raw amplitude | x: %.3f | y: %.3f | z: %.3f\n",
-    //        local_signal_data.adc_x_amp, local_signal_data.adc_y_amp,
-    //        local_signal_data.adc_z_amp);
+    matched_filter(sample_buf_x, &cached_s_c, "x");
+    matched_filter(sample_buf_y, &cached_s_c, "y");
+    matched_filter(sample_buf_z, &cached_s_c, "z");
 
     read_rx_adc_data(&local_signal_data);
 
-    raw_phase = local_signal_data.adc_x_phase;
     // extracted phase from matched filter
+    raw_phase = *coils_arr[last_reference_coil].phase;
 
     phase_sync_signs();
 
     read_rx_adc_data(&local_signal_data);
+
     read_data(&local_data_rx);
 
-    // Added X axis phase offset to see how results look
-    float phase_err = wrap_to_pi((raw_phase - synced_phase) + 1.20f);
+    // Looks at reference coils phase error
+    // float phase_err = wrap_to_pi((raw_phase - synced_phase));
 
-    printk("phase: %.3f | q0: %.3f | q1: %.3f | q2: %.3f | q3: %.3f | "
-           "syncedPhase: %.3f | phaseErr: %.2f | amp: %.3f \n",
-           raw_phase, local_data_rx.q0, local_data_rx.q1, local_data_rx.q2,
-           local_data_rx.q3, synced_phase, phase_err,
-           local_signal_data.adc_x_amp);
+    // printk("phase: %6.3f | q0: %6.3f | q1: %6.3f | q2: %6.3f | q3: %6.3f | "
+    //        "syncedPhase: %6.3f | phaseErr: %6.2f | %s amp: %5.3f \n",
+    //        raw_phase, local_data_rx.q0, local_data_rx.q1, local_data_rx.q2,
+    //        local_data_rx.q3, synced_phase, phase_err,
+    //        coils_arr[last_reference_coil].axis,
+    //        *coils_arr[last_reference_coil].amp);
+
+    printk(
+        "x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis %s\n",
+        local_signal_data.adc_x_amp, local_signal_data.adc_y_amp,
+        local_signal_data.adc_z_amp, coils_arr[last_reference_coil].axis);
 
     // printk("first timestamp: %d | last timestamp: %d | difference: %d\n",
     //        adc_timestamp_x, adc_timestamp_z, adc_timestamp_z -
