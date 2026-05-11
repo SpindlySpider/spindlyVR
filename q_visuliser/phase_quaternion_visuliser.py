@@ -5,7 +5,9 @@ from vispy import util
 import numpy as np
 from vispy.app import use_app
 from vispy import geometry
+from vispy.visuals.transforms import STTransform
 import queue
+import re
 
 import numpy as np
 
@@ -25,15 +27,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.grid.spacing = 5
         self.view3d = self.grid.add_view(
             row=0, col=0, border_color="black", border_width=2)
+        self.view3d_pos = self.grid.add_view(
+            row=1, col=0, border_color="black", border_width=2)
         self.view2d = self.grid.add_view(
             row=0, col=1, border_color="black", border_width=2)
 
     def config_app(self):
 
         # VisPy canvas
-
         self.view3d.camera = scene.TurntableCamera(
             fov=45, azimuth=30, elevation=25)
+
+        self.view3d_pos.camera = scene.TurntableCamera(
+            fov=45, up="z")
 
         self.view2d.camera = scene.PanZoomCamera(rect=(0, -3.2, 10, 6.4))
 
@@ -46,15 +52,37 @@ class MainWindow(QtWidgets.QMainWindow):
         self.splitter.addWidget(self.log_box)
         self.setCentralWidget(self.splitter)
 
-        scene.visuals.Text(parent=self.view3d, text="Quaterion visulisation", pos=[
+        scene.visuals.Text(parent=self.view3d, text="Quaternion visulisation", pos=[
             350, 200, 0], face="Poppins", color="white")
+
         self.axis = scene.visuals.XYZAxis(parent=self.view3d.scene)
 
         self.resize(1400, 800)
         self.config_2d()
+        self.config_3d_pos()
 
-        self.add_cube()
+        self.cube = self.add_cube(self.view3d.scene)
         self.start_demo_timer()
+
+    def config_3d_pos(self):
+        # https://vispy.org/gallery/scene/surface_plot.html#sphx-glr-gallery-scene-surface-plot-py
+        xax = scene.Axis(pos=[[-2, -2], [2, -2]], tick_direction=(0, -1),
+                         font_size=16, axis_color='red', tick_color='k', text_color='k',
+                         parent=self.view3d_pos.scene)
+
+        # xax.transform = scene.STTransform(translate=(0, 0, -0.2))
+
+        yax = scene.Axis(pos=[[-2, -2], [-2, 2]], tick_direction=(-1, 0),
+                         font_size=16, axis_color='red', tick_color='k', text_color='k',
+                         parent=self.view3d_pos.scene)
+        # yax.transform = scene.STTransform(translate=(0, 0, -0.2))
+
+        self.position_cube = self.add_cube(self.view3d_pos.scene)
+
+        self.pos_file = open("./logs/first_pos_log.txt")
+
+        # Add a 3D axis to keep us oriented
+        axis = scene.visuals.XYZAxis(parent=self.view3d_pos.scene)
 
     def config_2d(self):
         self.x_axis = scene.AxisWidget(orientation="top", axis_label="Time")
@@ -91,8 +119,8 @@ class MainWindow(QtWidgets.QMainWindow):
             sv = self.queue.get_nowait()
             # empty queue so we always use new data
             self.queue.queue.clear()
-        except KeyError:
-            return
+        except Exception:
+            pass
 
         try:
             q = util.quaternion.Quaternion(
@@ -109,8 +137,25 @@ class MainWindow(QtWidgets.QMainWindow):
             # if we have no quaternion data pass :)
             pass
 
+        try:
+            self.update_cube_pos(sv)
+        except Exception:
+            # if we have no quaternion data pass :)
+            pass
+
+        # print(sv)
         self.canvas.update()
         self.log_box.appendPlainText(sv["raw"])
+
+    def update_cube_pos(self, sv):
+        # reg = re.compile(r"(\w+): ((?:\d|\.|-)+)")
+        # line = reg.findall(self.pos_file.readline())
+        # self.position_cube.transform = STTransform(
+        #     translate=(float(line[0][1]), float(line[1][1]), float(line[2][1])))
+        # print(line)
+        self.position_cube.transform = STTransform(
+            translate=(float(sv["X"]), float(sv["Y"]), float(sv["Z"])))
+        # print(line)
 
     def update_phase_data(self, sv):
         # sv is serial values
@@ -149,9 +194,9 @@ class MainWindow(QtWidgets.QMainWindow):
             red, red,
         ]
 
-    def add_cube(self):
-        self.cube = scene.visuals.Cube(
-            parent=self.view3d.scene,
+    def add_cube(self, parent):
+        return scene.visuals.Cube(
+            parent=parent,
             edge_color="black",
             face_colors=self.make_cube_face_colors()
         )
