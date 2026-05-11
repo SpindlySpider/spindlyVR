@@ -23,6 +23,7 @@ struct coil_data_storage {
   float deadband_cos; // if reading is strongly pos or neg switch it, if near 0
                       // (90deg) dont use result.
   float last_sign;
+  uint8_t hold_number; // how long the sign has been consistant
 };
 
 static void saadc_handler(nrfx_saadc_evt_t const *p_event);

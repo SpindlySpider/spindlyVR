@@ -18,6 +18,7 @@ K_SEM_DEFINE(radio_sync_sem, 0, 1);
 K_MUTEX_DEFINE(tx_mutex);
 // store ADC sampling timestamp
 static uint32_t adc_sample_timestamp;
+
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
 #include <nrfx_saadc.h>
 
@@ -154,7 +155,8 @@ void update_tx_data(float q0, float q1, float q2, float q3, float phase) {
   k_mutex_unlock(&tx_mutex);
 }
 
-void update_tx_data_timestamp(float q0, float q1, float q2, float q3, float phase, uint32_t timestamp) {
+void update_tx_data_timestamp(float q0, float q1, float q2, float q3,
+                              float phase, uint32_t timestamp) {
   k_mutex_lock(&timestamp_data_mutex, K_FOREVER);
   // Update struct
   local_timestamp_data.q0 = q0;
@@ -247,3 +249,35 @@ void update_pos_q_data(float q0, float q1, float q2, float q3, float x, float y,
 }
 
 #endif
+
+void normalise_quaternion(struct quaternion_t *q) {
+  // create unit quaternion
+  struct quaternion_t q_in = *q;
+  // get magnitude
+  float mag = sqrtf((q_in.w * q_in.w) + (q_in.x * q_in.x) + (q_in.y * q_in.y) +
+                    (q_in.z * q_in.z));
+  // normalise
+  q_in.w = q_in.w / mag;
+  q_in.x = q_in.x / mag;
+  q_in.y = q_in.y / mag;
+  q_in.z = q_in.z / mag;
+  *q = q_in;
+}
+
+// im sure this could be a lambda function
+struct quaternion_t inverse_quaternion(struct quaternion_t *q) {
+  struct quaternion_t q_in = {.w = q->w, .x = -q->x, .y = -q->y, .z = -q->z};
+  return q_in;
+}
+
+struct quaternion_t multiply_quaternion(struct quaternion_t q1,
+                                        struct quaternion_t q2) {
+  // following this equation
+  // https://en.wikipedia.org/wiki/Quaternion#Hamilton_product
+  struct quaternion_t product = {
+      .w = (q1.w * q2.w) - (q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z),
+      .x = (q1.w * q2.x) + (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y),
+      .y = (q1.w * q2.y) - (q1.x * q2.z) + (q1.y * q2.w) + (q1.z * q2.x),
+      .z = (q1.w * q2.z) + (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w)};
+  return product;
+}

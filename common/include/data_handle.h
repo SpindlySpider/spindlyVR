@@ -1,14 +1,21 @@
 #ifndef DATA_HANDLE_H
 #define DATA_HANDLE_H
 
-#include <hal/nrf_saadc.h>
-#include <stdint.h>
+#include <hal/nrf_saadc.h> #include <stdint.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
 #define PI 3.14159265f
 #define PACKET_TYPE_PULSE 0x01
 #define PACKET_TYPE_FOLLOW_UP 0x02
+
+struct quaternion_t {
+  float w, x, y, z;
+};
+
+struct vector_t {
+  float x, y, z;
+};
 
 struct cached_sin_cos_t {
   double sine[CONFIG_TX_SAMPLE_NUMBER];
@@ -62,10 +69,14 @@ int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c);
 
 // used to pass measured x,y,z from coil to positioning thread
 struct solver_packet_t {
-  float bx;
-  float by;
-  float bz;
-  float q0, q1, q2, q3;
+  // measured vector
+  float bx, by, bz;
+  // transmitter orientation
+  float tx_q0, tx_q1, tx_q2, tx_q3;
+  // receiver orientation
+  float rx_q0, rx_q1, rx_q2, rx_q3;
+  // receiver raw acceleration for 8 octant
+  float accel_x, accel_y, accel_z;
 };
 
 struct rx_data_container_t {
@@ -122,4 +133,12 @@ void update_pos_q_data(float q0, float q1, float q2, float q3, float x, float y,
 void read_timestamp(int32_t *timestamp_buf);
 void update_timestamp(int32_t timestamp);
 #endif
+
+struct quaternion_t inverse_quaternion(struct quaternion_t *q);
+
+struct quaternion_t multiply_quaternion(struct quaternion_t q1,
+                                        struct quaternion_t q2);
+
+void normalise_quaternion(struct quaternion_t *q);
+
 #endif
