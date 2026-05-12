@@ -62,23 +62,24 @@ static const struct gpio_dt_spec mux_s2 =
     GPIO_DT_SPEC_GET(DT_NODELABEL(mux_s2), gpios);
 
 // number of samples to hold the sign on
-static uint8_t sign_hold_number = 4;
+static uint8_t sign_hold_number = 3;
 // array of each coils pointers
 static struct coil_data_storage coils_arr[3] = {
     {&local_signal_data.adc_x_amp, &local_signal_data.adc_x_phase, "x",
-     &adc_timestamp_x, 0.0f, 36.0f, 0.15, 1, 0},
+     &adc_timestamp_x, -1.3f, 40.0f, 0.7, 1, 0},
     {&local_signal_data.adc_y_amp, &local_signal_data.adc_y_phase, "y",
-     &adc_timestamp_y, -1.4f, 36.0f, 0.15, 1, 0},
+     &adc_timestamp_y, -1.5f, 40.0f, 0.7, 1, 0},
     {&local_signal_data.adc_z_amp, &local_signal_data.adc_z_phase, "z",
-     &adc_timestamp_z, -0.10f, 36.0f, 0.15, 1, 0}};
+     &adc_timestamp_z, 1.40f, 40.0f, 0.7, 1, 0}};
 
 // the last reference coil, use to determine if the reference coil should be
 // changed, integer because it directly relates to the index above
-static uint8_t last_reference_coil = 0;
+// NOTE: this is set to Z axis right now because dynamic coil switching is not implemented
+static uint8_t last_reference_coil = 2;
 // what is the minimum amount of difference between stronger amp of the coil to
 // change to and the current coil
 //
-static float min_threshold_coil_change = 20.f;
+static float min_threshold_coil_change = 50.f;
 
 int16_t sample_buf_x[CONFIG_RX_SAMPLE_NUMBER] = {0};
 int16_t sample_buf_y[CONFIG_RX_SAMPLE_NUMBER] = {0};
@@ -97,8 +98,7 @@ static float wrap_to_pi(float angle) {
   if (angle < 0.0f) {
     // rotate the angle back to be positive 2 pi range
     angle += TWO_PI;
-  }
-  // shifts value back to -pi to pi range
+  } // shifts value back to -pi to pi range
   return angle - PI;
 }
 
@@ -216,6 +216,8 @@ static float sign_axis_from_phase(struct coil_data_storage *data,
   // coil timestamp
   float amp_abs = fabsf(*data->amp);
   float phase_offset = 0.0f;
+  // is this the reference coil
+  uint8_t reference = 0;
 
   int32_t dt_ticks = *data->axis_timestamp - sync_timestamp;
 
@@ -224,16 +226,19 @@ static float sign_axis_from_phase(struct coil_data_storage *data,
   float expected_phase =
       wrap_to_pi(target_phase + phase_advance_from_ticks(dt_ticks));
 
+  // could just pass if this is the reference coil in args
   if (strcmp(data->axis, coils_arr[last_reference_coil].axis) == 0) {
     // if this is the reference coil, see what the synced and expected phase is
     synced_phase = expected_phase;
     phase_offset = data->phase_offset_rad;
+    reference = 1;
   }
 
   // NOTE: This conditionally applies the phase_offset radians, if this is the
   // refernce coil, otherwise ignore
 
-  float diff = wrap_to_pi((*data->phase - expected_phase) + phase_offset);
+  // take away the phase offset
+  float diff = wrap_to_pi((*data->phase - expected_phase) - phase_offset);
   // finding the difference between the expected phase and the measurement
 
   // cosine used to determine sign.
@@ -242,6 +247,11 @@ static float sign_axis_from_phase(struct coil_data_storage *data,
   // in algiment they will be around -pi or +pi (roughly the same angle) and
   // will give -1
   float c = cosf(diff);
+
+  if (reference != 1) {
+    printk("ref coil: %s | axis: %s | phase error: %6.3f | cos: %6.3f\n",
+           coils_arr[last_reference_coil].axis, data->axis, diff, c);
+  }
 
   float sign = data->last_sign;
 
@@ -254,6 +264,7 @@ static float sign_axis_from_phase(struct coil_data_storage *data,
       if (data->hold_number > sign_hold_number) {
         // sign = (c >= 0.0f) ? 1.0f : -1.0f;
         data->last_sign = potential_sign;
+        sign = potential_sign;
         data->hold_number = 0;
       }
     } else {
@@ -271,24 +282,28 @@ void phase_sync_signs(void) {
   // when the TX was received
   uint32_t tx_sync_time = local_timestamp;
 
+  // TODO: this is some basic code for dynamically switching the refernce coil, it would require anchoring the sign of the current reference and the candidate reference coil, so right now do not have the time to fix this, we just assume Z is the refrence coil.
+  //
   // find which coil has the largest amplitude
-  for (int i = 0; i < 3; i++) {
-    // if the difference between this coil (x,y,z) and the last reference coil
-    // is greater than the minimum threshold change
-    // should be postive since this is before the sign is applied
-    if (*coils_arr[i].amp - *coils_arr[last_reference_coil].amp >
-        min_threshold_coil_change) {
-      // switch the coil, this should ensure that the largest coil is always
-      // selected, change the intger
-      last_reference_coil = i;
-    }
-  }
+  // for (int i = 0; i < 3; i++) {
+  //   // if the difference between this coil (x,y,z) and the last reference coil
+  //   // is greater than the minimum threshold change
+  //   // should be postive since this is before the sign is applied
+  //   if (*coils_arr[i].amp - *coils_arr[last_reference_coil].amp >
+  //       min_threshold_coil_change) {
+  //     // switch the coil, this should ensure that the largest coil is always
+  //     // selected, change the intger
+  //     last_reference_coil = i;
+  //   }
+  // }
+  //
   // from here the last reference coil has the coil we will compare tx phase to
 
   // get the reference coil data
-  struct coil_data_storage data = coils_arr[last_reference_coil];
+  struct coil_data_storage *data = &coils_arr[last_reference_coil];
+
   // update the reference coils sign first
-  *data.amp = sign_axis_from_phase(&data, tx_sync_time, tx_phase);
+  *data->amp = sign_axis_from_phase(data, tx_sync_time, tx_phase);
 
   // update coils from internal reference coil
   for (int i = 0; i < 3; i++) {
@@ -298,8 +313,8 @@ void phase_sync_signs(void) {
     }
     // update value at coils array amp (local_signal_data.amp)
     // compare this sampled coil to the sample time of the reference coil
-    *coils_arr[i].amp =
-        sign_axis_from_phase(&coils_arr[i], *data.axis_timestamp, *data.phase);
+    *coils_arr[i].amp = sign_axis_from_phase(
+        &coils_arr[i], *data->axis_timestamp, *data->phase);
   }
 
   // this can probbaly be compressed as well, using a for loop
@@ -460,9 +475,11 @@ void start_adc_thread(void *, void *, void *) {
 
     k_msgq_get(&rx_sync_msgq, &sync, K_FOREVER);
 
-    // read the quaterion orientation when sampling ADC
+    // read the quaterion orientation when sampling ADC - I think there might be
+    // an issue here since we are looking at N-1 timetsmp, we need orientation
+    // of when we recived that packet
     read_data(&local_data_rx);
-    // read accel data for later positioning
+    // read accel data for later positioning -
     read_rx_data(&local_sensor_data);
 
     float rx_q0 = local_data_rx.q0;
@@ -504,13 +521,16 @@ void start_adc_thread(void *, void *, void *) {
     read_data(&local_data_rx);
 
     // Looks at reference coils phase error
-    // float phase_err = wrap_to_pi((raw_phase - synced_phase));
-    // printk("phase: %6.3f | q0: %6.3f | q1: %6.3f | q2: %6.3f | q3: %6.3f | "
-    //        "syncedPhase: %6.3f | phaseErr: %6.2f | %s amp: %5.3f \n",
-    //        raw_phase, local_data_rx.q0, local_data_rx.q1, local_data_rx.q2,
-    //        local_data_rx.q3, synced_phase, phase_err,
-    //        coils_arr[last_reference_coil].axis,
-    //        *coils_arr[last_reference_coil].amp);
+    // float phase_err =
+    //     wrap_to_pi((raw_phase - synced_phase) -
+    //                coils_arr[last_reference_coil].phase_offset_rad);
+    // printk(
+    //     "phase: %6.3f | q0: %6.3f | q1: %6.3f | q2: %6.3f | q3: %6.3f | "
+    //     "syncedPhase: %6.3f | phaseErr: %6.2f | %s amp: %5.3f | cos:
+    //     %3.2f\n", raw_phase, local_data_rx.q0, local_data_rx.q1,
+    //     local_data_rx.q2, local_data_rx.q3, synced_phase, phase_err,
+    //     coils_arr[last_reference_coil].axis,
+    //     *coils_arr[last_reference_coil].amp, cosf(phase_err));
 
     // printk("x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest
     // axis%s\n",
@@ -521,10 +541,20 @@ void start_adc_thread(void *, void *, void *) {
     //        adc_timestamp_x, adc_timestamp_z, adc_timestamp_z -
     //        adc_timestamp_x);
 
+    // TODO: need print out here for accel values and sign values to workout
+    // which axis needs to be assigned to what
+
     // scale the vectors
     float bx = (local_signal_data.adc_x_amp * GAIN_X);
     float by = (local_signal_data.adc_y_amp * GAIN_Y);
     float bz = (local_signal_data.adc_z_amp * GAIN_Z);
+
+    // printk("x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis %s
+    // "
+    //        "| accel x: %-8.3f  | accel y: %-8.3f | accel z: %-8.3f\n",
+    //        bx, by, bz, coils_arr[last_reference_coil].axis,
+    //        local_sensor_data.accel_x, local_sensor_data.accel_y,
+    //        local_sensor_data.accel_z);
 
     // printk("x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis %s
     // "
@@ -535,24 +565,26 @@ void start_adc_thread(void *, void *, void *) {
     // TODO: should include the current quaternions as well, so that we are not
     // using stale quaternions when calculating phase?
 
-    struct solver_packet_t pos_packet = {
-        .bx = bx,
-        .by = by,
-        .bz = bz,
-        .tx_q0 = local_tx_data.q0,
-        .tx_q1 = local_tx_data.q1,
-        .tx_q2 = local_tx_data.q2,
-        .tx_q3 = local_tx_data.q3,
-        .rx_q0 = rx_q0,
-        .rx_q1 = rx_q1,
-        .rx_q2 = rx_q2,
-        .rx_q3 = rx_q3,
-        .accel_x = local_sensor_data.accel_x,
-        .accel_y = local_sensor_data.accel_y,
-        .accel_z = local_sensor_data.accel_z,
-    };
+    // ISSUE: axis may need to be flipped? / aligned here
 
-    k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
+    // struct solver_packet_t pos_packet = {
+    //     .bx = -bx,
+    //     .by = -by,
+    //     .bz = bz,
+    //     .tx_q0 = local_tx_data.q0,
+    //     .tx_q1 = local_tx_data.q1,
+    //     .tx_q2 = local_tx_data.q2,
+    //     .tx_q3 = local_tx_data.q3,
+    //     .rx_q0 = rx_q0,
+    //     .rx_q1 = rx_q1,
+    //     .rx_q2 = rx_q2,
+    //     .rx_q3 = rx_q3,
+    //     .accel_x = local_sensor_data.accel_x,
+    //     .accel_y = local_sensor_data.accel_y,
+    //     .accel_z = local_sensor_data.accel_z,
+    // };
+    //
+    // k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
     // k_msleep(10);
   }
 }
