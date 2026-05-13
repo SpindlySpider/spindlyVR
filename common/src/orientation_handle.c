@@ -23,6 +23,8 @@ static const struct device *i2c_dev =
 
 static struct qmc_data mag_data;
 static struct sensor_data_struct raw_sensor_data;
+// gyro bias for each axis
+float x_gb, y_gb, z_gb;
 
 int setup_sensors() {
   int ret;
@@ -45,6 +47,9 @@ int read_sensors() {
   if (ret != 0) {
     return ret;
   }
+  raw_sensor_data.gyro_x -= x_gb;
+  raw_sensor_data.gyro_y -= y_gb;
+  raw_sensor_data.gyro_z -= z_gb;
   ret = qmc_read_sensor_data(i2c_dev, &mag_data);
   if (ret != 0) {
     return ret;
@@ -73,16 +78,35 @@ int convert_raw(struct sensor_data_struct *data) {
 }
 
 void update_madgwick(struct sensor_data_struct *data) {
-  // MadgwickAHRSupdate(data->gyro_x, data->gyro_y, data->gyro_z, data->accel_x,
-  //                    data->accel_y, data->accel_z, -data->mag_x, -data->mag_y,
-  //                    data->mag_z);
   MadgwickAHRSupdate(data->gyro_x, data->gyro_y, data->gyro_z, data->accel_x,
                      data->accel_y, data->accel_z,data->mag_x, -data->mag_y,
                      data->mag_z);
-  // MadgwickAHRSupdateIMU(data->gyro_x, -data->gyro_z, data->gyro_y,
-  // data->accel_x, -data->accel_z, data->accel_y);
-  // MadgwickAHRSupdateIMU(data->gyro_x, data->gyro_y, data -> gyro_z,
-  // data->accel_x,  data->accel_y, data->accel_z);
+  // MadgwickAHRSupdateIMU(data->gyro_x, data->gyro_y, data->gyro_z, data->accel_x,
+  //                       data->accel_y, data->accel_z);
+}
+
+void calibrate_gyro() {
+  int samples = 500;
+  float sum_x, sum_y, sum_z;
+  // allow sensor settle after initation
+  printk("starting gyro calibration\n");
+  k_msleep(1000);
+  for (int i = 0; i < samples; i++) {
+    read_sensors();
+    // printk("gyro x: %4.3f | gyro y: %4.3f | gyro z: %4.3f\n",
+    //        raw_sensor_data.gyro_x, raw_sensor_data.gyro_y,
+    //        raw_sensor_data.gyro_z);
+    sum_x += raw_sensor_data.gyro_x;
+    sum_y += raw_sensor_data.gyro_y;
+    sum_z += raw_sensor_data.gyro_z;
+    // 100 hz 5 seconds
+    k_msleep(10);
+    // k_msleep(300);
+  }
+  x_gb = sum_x / samples;
+  y_gb = sum_y / samples;
+  z_gb = sum_z / samples;
+  printk("Finished gyro calibration!\n");
 }
 
 void run_orientation_loop(void *, void *, void *) {
@@ -93,17 +117,21 @@ void run_orientation_loop(void *, void *, void *) {
   // NOTE: if there are performance issue can move the start up function out of
   // while loop to stop beta reassignment each loop
 
+  // calibrate gyro
+  calibrate_gyro();
+
   while (1) {
     read_sensors();
+    // ISSUE: Zepyhyr converts to m2 so we unconvert back to g
     convert_raw(&raw_sensor_data);
     update_madgwick(&raw_sensor_data);
 
     if (!finished_startup && startup_counter <= 1000) {
       // NOTE: fix to true north, start super sensitive and then reduce beta
       startup_counter++;
-      beta = 5.0f;
+      // beta = 5.0f;
     } else {
-      beta = 0.8f;
+      beta = 0.3f;
     }
 
     if (IS_ENABLED(CONFIG_DEBUG_SHOW_QUATERNIONS_DATA)) {

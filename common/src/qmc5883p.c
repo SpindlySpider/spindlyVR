@@ -36,6 +36,21 @@
 #define MAG_SCALE_X 1
 #define MAG_SCALE_Y 1
 #define MAG_SCALE_Z 1
+//--- rx
+// #define MAG_OFFSET_X  40.00
+// #define MAG_OFFSET_Y  -40.00
+// #define MAG_OFFSET_Z  -93.00
+// #define MAG_SCALE_X   1.0026
+// #define MAG_SCALE_Y   0.9928
+// #define MAG_SCALE_Z   1.0046
+
+// -- tx
+// #define MAG_OFFSET_X 262.00
+// #define MAG_OFFSET_Y -71.00
+// #define MAG_OFFSET_Z -10.00
+// #define MAG_SCALE_X 0.9842
+// #define MAG_SCALE_Y 1.0013
+// #define MAG_SCALE_Z 1.0149
 
 float mag_offset_x = MAG_OFFSET_X;
 float mag_offset_y = MAG_OFFSET_Y;
