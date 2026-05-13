@@ -20,6 +20,13 @@
       };
   };
 
+  cal_button {
+      compatible = "gpio-leds";
+      cal_button_pin: cal_button_pin {
+        //pin 0.24
+        gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+        };
+  };
 
 };
 
@@ -63,7 +70,7 @@
       reg = <0x68>;
       status = "okay";
       gyro-fs = <2000>;
-      accel-fs = <2>;
+      accel-fs = <8>;
   };
   qmc_5883p: qmc_5883p@0 {
     // use this to set which i2c bus you are using for qmc_5883p

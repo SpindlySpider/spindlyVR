@@ -74,7 +74,8 @@ static struct coil_data_storage coils_arr[3] = {
 
 // the last reference coil, use to determine if the reference coil should be
 // changed, integer because it directly relates to the index above
-// NOTE: this is set to Z axis right now because dynamic coil switching is not implemented
+// NOTE: this is set to Z axis right now because dynamic coil switching is not
+// implemented
 static uint8_t last_reference_coil = 2;
 // what is the minimum amount of difference between stronger amp of the coil to
 // change to and the current coil
@@ -248,10 +249,10 @@ static float sign_axis_from_phase(struct coil_data_storage *data,
   // will give -1
   float c = cosf(diff);
 
-  if (reference != 1) {
-    printk("ref coil: %s | axis: %s | phase error: %6.3f | cos: %6.3f\n",
-           coils_arr[last_reference_coil].axis, data->axis, diff, c);
-  }
+  // if (reference != 1) {
+  //   printk("ref coil: %s | axis: %s | phase error: %6.3f | cos: %6.3f\n",
+  //          coils_arr[last_reference_coil].axis, data->axis, diff, c);
+  // }
 
   float sign = data->last_sign;
 
@@ -282,7 +283,10 @@ void phase_sync_signs(void) {
   // when the TX was received
   uint32_t tx_sync_time = local_timestamp;
 
-  // TODO: this is some basic code for dynamically switching the refernce coil, it would require anchoring the sign of the current reference and the candidate reference coil, so right now do not have the time to fix this, we just assume Z is the refrence coil.
+  // TODO: this is some basic code for dynamically switching the refernce coil,
+  // it would require anchoring the sign of the current reference and the
+  // candidate reference coil, so right now do not have the time to fix this, we
+  // just assume Z is the refrence coil.
   //
   // find which coil has the largest amplitude
   // for (int i = 0; i < 3; i++) {
@@ -549,9 +553,8 @@ void start_adc_thread(void *, void *, void *) {
     float by = (local_signal_data.adc_y_amp * GAIN_Y);
     float bz = (local_signal_data.adc_z_amp * GAIN_Z);
 
-    // printk("x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | strongest axis %s
-    // "
-    //        "| accel x: %-8.3f  | accel y: %-8.3f | accel z: %-8.3f\n",
+    // printk("x amp: %-8.3f | y amp: %-8.3f | z amp: %-8.3f | ref axis %s | "
+    //        "accel x: %-8.3f  | accel y: %-8.3f | accel z: %-8.3f\n",
     //        bx, by, bz, coils_arr[last_reference_coil].axis,
     //        local_sensor_data.accel_x, local_sensor_data.accel_y,
     //        local_sensor_data.accel_z);
@@ -565,26 +568,26 @@ void start_adc_thread(void *, void *, void *) {
     // TODO: should include the current quaternions as well, so that we are not
     // using stale quaternions when calculating phase?
 
-    // ISSUE: axis may need to be flipped? / aligned here
+    // ISSUE: axis may need to be flipped? / aligned here - for rx 0 the coils are perfectly aligned to IMU
 
-    // struct solver_packet_t pos_packet = {
-    //     .bx = -bx,
-    //     .by = -by,
-    //     .bz = bz,
-    //     .tx_q0 = local_tx_data.q0,
-    //     .tx_q1 = local_tx_data.q1,
-    //     .tx_q2 = local_tx_data.q2,
-    //     .tx_q3 = local_tx_data.q3,
-    //     .rx_q0 = rx_q0,
-    //     .rx_q1 = rx_q1,
-    //     .rx_q2 = rx_q2,
-    //     .rx_q3 = rx_q3,
-    //     .accel_x = local_sensor_data.accel_x,
-    //     .accel_y = local_sensor_data.accel_y,
-    //     .accel_z = local_sensor_data.accel_z,
-    // };
-    //
-    // k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
+    struct solver_packet_t pos_packet = {
+        .bx = -bx,
+        .by = by,
+        .bz = bz,
+        .tx_q0 = local_tx_data.q0,
+        .tx_q1 = local_tx_data.q1,
+        .tx_q2 = local_tx_data.q2,
+        .tx_q3 = local_tx_data.q3,
+        .rx_q0 = rx_q0,
+        .rx_q1 = rx_q1,
+        .rx_q2 = rx_q2,
+        .rx_q3 = rx_q3,
+        .accel_x = local_sensor_data.accel_x,
+        .accel_y = local_sensor_data.accel_y,
+        .accel_z = local_sensor_data.accel_z,
+    };
+
+    k_msgq_put(&positioning_queue, &pos_packet, K_NO_WAIT);
     // k_msleep(10);
   }
 }
