@@ -198,7 +198,8 @@ class MainWindow(QtWidgets.QMainWindow):
         return scene.visuals.Cube(
             parent=parent,
             edge_color="black",
-            face_colors=self.make_cube_face_colors()
+            face_colors=self.make_cube_face_colors(),
+            size=(0.1,0.1,0.1)
         )
 
     def rotate_cube(self, q):
