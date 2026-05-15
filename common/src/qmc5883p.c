@@ -30,12 +30,27 @@
 // bitwise shift and or
 #define CONFIG ((OSR2 << 6) | (OSR1 << 4) | (ODR << 2) | MODE)
 
-#define MAG_OFFSET_X 262.00
-#define MAG_OFFSET_Y -71.00
-#define MAG_OFFSET_Z -10.00
-#define MAG_SCALE_X 0.9842
-#define MAG_SCALE_Y 1.0013
-#define MAG_SCALE_Z 1.0149
+#define MAG_OFFSET_X 0
+#define MAG_OFFSET_Y 0
+#define MAG_OFFSET_Z 0
+#define MAG_SCALE_X 1
+#define MAG_SCALE_Y 1
+#define MAG_SCALE_Z 1
+//--- rx
+// #define MAG_OFFSET_X  40.00
+// #define MAG_OFFSET_Y  -40.00
+// #define MAG_OFFSET_Z  -93.00
+// #define MAG_SCALE_X   1.0026
+// #define MAG_SCALE_Y   0.9928
+// #define MAG_SCALE_Z   1.0046
+
+// -- tx
+// #define MAG_OFFSET_X 262.00
+// #define MAG_OFFSET_Y -71.00
+// #define MAG_OFFSET_Z -10.00
+// #define MAG_SCALE_X 0.9842
+// #define MAG_SCALE_Y 1.0013
+// #define MAG_SCALE_Z 1.0149
 
 float mag_offset_x = MAG_OFFSET_X;
 float mag_offset_y = MAG_OFFSET_Y;
@@ -114,7 +129,8 @@ int qmc_read_sensor_data(const struct device *i2c_dev,
   ret = i2c_burst_read(i2c_dev, QMC5883P_ADDR, START_REG, raw_data, 6);
 
   if (ret == 0) {
-    // bit shift and  bitwise or to create full signed value from registers
+    // bit shift and bitwise or to create full signed value from registers
+    // doesnt this raw data need to be converted to magnetic value?
     int16_t x = (raw_data[1] << 8) | raw_data[0];
     int16_t y = (raw_data[3] << 8) | raw_data[2];
     int16_t z = (raw_data[5] << 8) | raw_data[4];

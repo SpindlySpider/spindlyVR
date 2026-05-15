@@ -2,6 +2,7 @@
 #include <hal/nrf_saadc.h>
 #include <math.h>
 #include <nrfx_saadc.h>
+#include <stdint.h>
 #include <zephyr/kernel.h>
 
 // handles data: quaternions, amp and phase
@@ -11,13 +12,25 @@
 // required for both Tx & Rx, handles local quaternion data
 K_MUTEX_DEFINE(container_mutex);
 
+K_SEM_DEFINE(radio_sync_sem, 0, 1);
+// used for syncing radio on both TX and RX
+
+K_MUTEX_DEFINE(tx_mutex);
+// store ADC sampling timestamp
+static uint32_t adc_sample_timestamp;
+
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
 #include <nrfx_saadc.h>
 
 K_MUTEX_DEFINE(rx_mutex);
 K_MUTEX_DEFINE(rx_signal_mutex);
-K_MUTEX_DEFINE(tx_mutex);
 K_MUTEX_DEFINE(pos_mutex);
+K_MUTEX_DEFINE(timestamp_mutex);
+K_MUTEX_DEFINE(timestamp_data_mutex);
+K_MUTEX_DEFINE(adc_timestamp_mutex);
+
+K_MSGQ_DEFINE(rx_sync_msgq, sizeof(struct rx_sync_ref_t), 4, 4);
+
 // store phase and quaternion of TX
 struct data_container_t tx_data_container = {0};
 // create empty container for ADC & accel & gyro
@@ -26,6 +39,10 @@ struct rx_data_container_t rx_data_container = {0};
 struct pos_q_t pos_orientation_container = {0};
 // init container for matched filter and dynamic gain
 struct rx_data_signal_t rx_data_signal_container = {.gain = NRF_SAADC_GAIN1_6};
+// store timestamp to determine how much to fast forward ADC reading times
+static uint32_t phase_timestamp;
+static struct timestamp_data_container_t local_timestamp_data = {0};
+
 #endif
 
 struct data_container_t data_container = {0};
@@ -44,13 +61,14 @@ void update_orientation_data(float q0, float q1, float q2, float q3) {
   k_mutex_unlock(&container_mutex);
 }
 
-void update_signal_data(float amp, float phase) {
+void update_signal_data(float amp, float phase, uint32_t timestamp) {
   // lock
   k_mutex_lock(&container_mutex, K_FOREVER);
 
   // Update struct
   data_container.tx_amp = amp;
   data_container.tx_phase = phase;
+  adc_sample_timestamp = timestamp;
 
   // release lock
   k_mutex_unlock(&container_mutex);
@@ -63,20 +81,57 @@ void read_data(struct data_container_t *data_destination) {
   k_mutex_unlock(&container_mutex);
 }
 
+void read_adc_data(struct data_container_t *data_destination,
+                   uint32_t *timestamp_dest) {
+  // stores data in data destination struct;
+  k_mutex_lock(&container_mutex, K_FOREVER);
+  *data_destination = data_container;
+  *timestamp_dest = adc_sample_timestamp;
+  k_mutex_unlock(&container_mutex);
+}
+
 int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c) {
   // cache values of target sin and cos wave for use during execution
 
   for (int i = 0; i < CONFIG_TX_SAMPLE_NUMBER; i++) {
     // *1000 because in KHZ
     float time = (float)i / (CONFIG_TX_ADC_FREQUENCY * 1000.0f);
+
     float angle = 2.0f * PI * (CONFIG_TX_PWM_FREQUENCY * 1000.0f) * time;
-    cached_s_c->sine[i] = sin(angle);
-    cached_s_c->cosine[i] = cos(angle);
+    // cached_s_c->sine[i] = sinf(angle);
+    // cached_s_c->cosine[i] = cosf(angle);
+
+    // 3. Generate the raw waves
+    float raw_sine = sinf(angle);
+    float raw_cosine = cosf(angle);
+
+    // 4. Calculate the Hann Window to eliminate clock-drift spectral leakage
+    float hann_multiplier =
+        0.5f * (1.0f - cosf(2.0f * PI * (float)i /
+                            (float)(CONFIG_TX_SAMPLE_NUMBER - 1)));
+
+    // 5. Apply the window and save to cache
+    cached_s_c->sine[i] = raw_sine * hann_multiplier;
+    cached_s_c->cosine[i] = raw_cosine * hann_multiplier;
   }
   return 0;
 }
 
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
+
+// -- Update timestamp
+void update_timestamp(int32_t timestamp) {
+  k_mutex_lock(&timestamp_mutex, K_FOREVER);
+  phase_timestamp = timestamp;
+  k_mutex_unlock(&timestamp_mutex);
+}
+
+// -- Read timestamp
+void read_timestamp(int32_t *timestamp) {
+  k_mutex_lock(&timestamp_mutex, K_FOREVER);
+  *timestamp = phase_timestamp;
+  k_mutex_unlock(&timestamp_mutex);
+}
 
 // --- TX container manipulation
 void read_tx_data(struct data_container_t *data_destination) {
@@ -98,6 +153,27 @@ void update_tx_data(float q0, float q1, float q2, float q3, float phase) {
 
   // release lock
   k_mutex_unlock(&tx_mutex);
+}
+
+void update_tx_data_timestamp(float q0, float q1, float q2, float q3,
+                              float phase, uint32_t timestamp) {
+  k_mutex_lock(&timestamp_data_mutex, K_FOREVER);
+  // Update struct
+  local_timestamp_data.q0 = q0;
+  local_timestamp_data.q1 = q1;
+  local_timestamp_data.q2 = q2;
+  local_timestamp_data.q3 = q3;
+  local_timestamp_data.tx_phase = phase;
+  local_timestamp_data.timestamp = timestamp;
+
+  k_mutex_unlock(&timestamp_data_mutex);
+}
+
+void read_tx_data_timestamp(struct timestamp_data_container_t *data_dest) {
+  // read timestamp and data at the sametime
+  k_mutex_lock(&timestamp_data_mutex, K_FOREVER);
+  *data_dest = local_timestamp_data;
+  k_mutex_unlock(&timestamp_data_mutex);
 }
 
 // --- RX container manipulation
@@ -173,3 +249,35 @@ void update_pos_q_data(float q0, float q1, float q2, float q3, float x, float y,
 }
 
 #endif
+
+void normalise_quaternion(struct quaternion_t *q) {
+  // create unit quaternion
+  struct quaternion_t q_in = *q;
+  // get magnitude
+  float mag = sqrtf((q_in.w * q_in.w) + (q_in.x * q_in.x) + (q_in.y * q_in.y) +
+                    (q_in.z * q_in.z));
+  // normalise
+  q_in.w = q_in.w / mag;
+  q_in.x = q_in.x / mag;
+  q_in.y = q_in.y / mag;
+  q_in.z = q_in.z / mag;
+  *q = q_in;
+}
+
+// im sure this could be a lambda function
+struct quaternion_t inverse_quaternion(struct quaternion_t *q) {
+  struct quaternion_t q_in = {.w = q->w, .x = -q->x, .y = -q->y, .z = -q->z};
+  return q_in;
+}
+
+struct quaternion_t multiply_quaternion(struct quaternion_t q1,
+                                        struct quaternion_t q2) {
+  // following this equation
+  // https://en.wikipedia.org/wiki/Quaternion#Hamilton_product
+  struct quaternion_t product = {
+      .w = (q1.w * q2.w) - (q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z),
+      .x = (q1.w * q2.x) + (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y),
+      .y = (q1.w * q2.y) - (q1.x * q2.z) + (q1.y * q2.w) + (q1.z * q2.x),
+      .z = (q1.w * q2.z) + (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w)};
+  return product;
+}

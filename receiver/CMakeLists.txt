@@ -12,6 +12,8 @@ target_sources(app PRIVATE
   src/main.c
   src/adc.c
   src/receive_data.c
+  src/timer.c
+  src/position.c
 )
 
 target_sources(app PRIVATE

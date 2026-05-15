@@ -36,7 +36,7 @@ config TX_PWM_FREQUENCY
 
 config TX_ADC_FREQUENCY
   int "Frequency of ADC checking transmitter coils voltage(KHz)"
-  default 160
+  default 200
   help
     Frequency of ADC checking transmitter coil voltage
 

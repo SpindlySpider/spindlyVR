@@ -1,24 +1,45 @@
 #ifndef DATA_HANDLE_H
 #define DATA_HANDLE_H
 
-#include <stdint.h>
-#include <hal/nrf_saadc.h>
+#include <hal/nrf_saadc.h> #include <stdint.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
 #define PI 3.14159265f
+#define PACKET_TYPE_PULSE 0x01
+#define PACKET_TYPE_FOLLOW_UP 0x02
+
+struct quaternion_t {
+  float w, x, y, z;
+};
+
+struct vector_t {
+  float x, y, z;
+};
 
 struct cached_sin_cos_t {
   double sine[CONFIG_TX_SAMPLE_NUMBER];
   double cosine[CONFIG_TX_SAMPLE_NUMBER];
 };
 
+struct timestamp_data_container_t {
+  // Quaternion orientation
+  float q0, q1, q2, q3;
+  // transmitted to Rx so it knows its signed magnetic field
+  float tx_amp, tx_phase;
+
+  uint32_t packet_seq; // sequence number of this radio packet
+  uint32_t timestamp;
+};
+
+// add packed to make sure compiler does not add padding
 struct data_container_t {
   // Quaternion orientation
   float q0, q1, q2, q3;
-
   // transmitted to Rx so it knows its signed magnetic field
   float tx_amp, tx_phase;
+
+  uint32_t packet_seq; // sequence number of this radio packet
 };
 
 // used for quick conversion of data to bytes
@@ -35,22 +56,38 @@ static uint8_t addr_prefix[8] = {0xC2, 0xC3, 0xC4, 0xC5,
 // local data
 void update_orientation_data(float q0, float q1, float q2, float q3);
 
-void update_signal_data(float amp, float phase);
+void update_signal_data(float amp, float phase, uint32_t timestamp);
+
+void read_adc_data(struct data_container_t *data_destination,
+                   uint32_t *timestamp_dest);
 
 void read_data(struct data_container_t *data_destination);
 
 int setup_sin_cos_cache(struct cached_sin_cos_t *cached_s_c);
 
 #if IS_ENABLED(CONFIG_IS_RECEIVER)
+
+// used to pass measured x,y,z from coil to positioning thread
+struct solver_packet_t {
+  // measured vector
+  float bx, by, bz;
+  // transmitter orientation
+  float tx_q0, tx_q1, tx_q2, tx_q3;
+  // receiver orientation
+  float rx_q0, rx_q1, rx_q2, rx_q3;
+  // receiver raw acceleration for 8 octant
+  float accel_x, accel_y, accel_z;
+};
+
 struct rx_data_container_t {
 
   // accel & gyro data for dynamic calibration & position conformation
-  float accel_x,accel_y,accel_z;
+  float accel_x, accel_y, accel_z;
   float gyro_x, gyro_y, gyro_z;
 };
 
 struct rx_data_signal_t {
-  // struct for storing matched filter results 
+  // struct for storing matched filter results
   // & dynamic gain
   // data container for rx specific attributes
   // Received voltage on Rx tri-axis coil
@@ -68,15 +105,40 @@ struct pos_q_t {
   float q0, q1, q2, q3;
 };
 
+struct rx_sync_ref_t {
+  uint32_t seq;
+  uint32_t timestamp;
+  float tx_phase;
+  float q0, q1, q2, q3;
+};
+
 void read_tx_data(struct data_container_t *data_destination);
 void update_tx_data(float q0, float q1, float q2, float q3, float phase);
 void update_rx_adc_data(float amp, float phase, char *axis);
 void update_rx_accel_gyro_data(float accel_x, float accel_y, float accel_z,
                                float gyro_x, float gyro_y, float gyro_z);
 
+void read_pos_q_data(struct pos_q_t *data_destination);
+
+void read_tx_data_timestamp(struct timestamp_data_container_t *data_dest);
+void update_tx_data_timestamp(float q0, float q1, float q2, float q3,
+                              float phase, uint32_t timestamp);
+
 void read_rx_adc_data(struct rx_data_signal_t *data_destination);
+void read_rx_data(struct rx_data_container_t *data_destination);
+
 void read_pos_q_data(struct pos_q_t *data_destination);
 void update_pos_q_data(float q0, float q1, float q2, float q3, float x, float y,
                        float z);
+void read_timestamp(int32_t *timestamp_buf);
+void update_timestamp(int32_t timestamp);
 #endif
+
+struct quaternion_t inverse_quaternion(struct quaternion_t *q);
+
+struct quaternion_t multiply_quaternion(struct quaternion_t q1,
+                                        struct quaternion_t q2);
+
+void normalise_quaternion(struct quaternion_t *q);
+
 #endif

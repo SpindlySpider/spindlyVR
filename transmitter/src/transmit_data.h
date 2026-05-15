@@ -1,6 +1,6 @@
 #ifndef DATA_HANDLE_H
 #define DATA_HANDLE_H
-
+#include <nrfx_timer.h>
 void esb_tx_event_handler(struct esb_evt const *event);
 int config_esb(void);
 int setup_transmitter();

@@ -21,7 +21,8 @@
 //---------------------------------------------------------------------------------------------------
 // Definitions
 
-#define sampleFreq	200.0f		// sample frequency in Hz
+// #define sampleFreq	100.0f		// sample frequency in Hz
+#define sampleFreq	CONFIG_TX_BROADCAST_FREQUENCY		// sample frequency in Hz
 #define betaDef		0.1f		// 2 * proportional gain
 
 //---------------------------------------------------------------------------------------------------

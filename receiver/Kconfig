@@ -25,7 +25,7 @@ config RX_UPDATE_RATE
 config RX_ADC_FREQUENCY
   int "Frequency of ADC checking receiver coils voltage(KHz)"
   # default 100
-  default 150
+  default 200
   help
     Frequency of ADC checking transmitter coil voltage
 
@@ -36,6 +36,11 @@ config TX_BROADCAST_FREQUENCY
   help
     How frequently the transmitter broadcast packets containing quaternion and phase data to receivers
 
+config RX_BROADCAST_FREQUENCY
+  int "Frequency of transmitter broadcasting bluetooth packets (Hz)"
+  default 100
+  help
+    How frequently the receiver broadcast packets containing quaternion and position data to pc
 
 config IS_RECEIVER
   bool "Is this the receiver device?"
@@ -66,7 +71,7 @@ config TX_PWM_FREQUENCY
 config TX_ADC_FREQUENCY
   int "Frequency of ADC checking transmitter coils voltage(KHz)"
   # default 100
-  default 150
+  default 200
   help
     Frequency of ADC checking transmitter coil voltage
 
